@@ -40,6 +40,14 @@ export async function placeOrder(ctx: ServiceContext, visitorKey: string, raw: u
     if (!cart || items.length === 0) throw new ServiceError('empty_cart', 'Таны сагс хоосон байна.')
 
     const variantIds = [...new Set(items.map((i) => i.variantId))].sort()
+    // Lock the variant rows first (single-table FOR UPDATE, stable order). They stay
+    // locked until this transaction ends, so concurrent checkouts queue up here.
+    await tx
+      .select({ id: t.productVariants.id })
+      .from(t.productVariants)
+      .where(inArray(t.productVariants.id, variantIds))
+      .orderBy(asc(t.productVariants.id))
+      .for('update')
     const locked = await tx
       .select({
         id: t.productVariants.id,
@@ -60,8 +68,6 @@ export async function placeOrder(ctx: ServiceContext, visitorKey: string, raw: u
       .innerJoin(t.products, eq(t.products.id, t.productVariants.productId))
       .innerJoin(t.productColors, eq(t.productColors.id, t.productVariants.colorId))
       .where(inArray(t.productVariants.id, variantIds))
-      .orderBy(asc(t.productVariants.id))
-      .for('update', { of: t.productVariants })
     const byId = new Map(locked.map((v) => [v.id, v]))
 
     const problems: string[] = []

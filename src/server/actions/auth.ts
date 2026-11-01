@@ -16,7 +16,7 @@ import { enforceRateLimit, LIMITS } from '@/server/security/rate-limit'
 import { ensureVisitorKey } from '@/server/visitor'
 import { toFailure, type ActionResult } from './run'
 
-export const DEMO_EMAIL = 'demo@manan.example'
+const DEMO_EMAIL = 'demo@manan.example'
 
 /** Public portfolio demo: a short, restricted session scoped to this browser's own orders. */
 export async function enterDemoAction(next?: string): Promise<ActionResult<null>> {

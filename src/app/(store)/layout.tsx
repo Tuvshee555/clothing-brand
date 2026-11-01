@@ -1,3 +1,4 @@
+import { Suspense } from 'react'
 import { AssistantWidget } from '@/components/store/assistant-widget'
 import { CartProvider } from '@/components/store/cart-drawer'
 import { Footer } from '@/components/store/footer'
@@ -16,7 +17,10 @@ export default async function StoreLayout({ children }: { children: React.ReactN
       <Header />
       <main id="main">{children}</main>
       <Footer />
-      <AssistantWidget storeName={content.info.storeName} />
+      {/* Reads the current URL (to know which product is open), so it streams in. */}
+      <Suspense fallback={null}>
+        <AssistantWidget storeName={content.info.storeName} />
+      </Suspense>
     </CartProvider>
   )
 }

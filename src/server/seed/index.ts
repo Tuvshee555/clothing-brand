@@ -140,7 +140,7 @@ export async function seed(db: Database, opts: SeedOptions = {}): Promise<string
               sku: skuFor(p.code, color.code, size),
               priceOverride: p.priceOverrides?.[size] ?? null,
               stock: 0,
-              lowStockThreshold: p.category === 'accessories' ? 2 : 2,
+              lowStockThreshold: 1,
               sortOrder: ci * 100 + si,
             })
             .returning({ id: t.productVariants.id })
