@@ -41,14 +41,17 @@ server actions validate → authorize → call service).
 
 ```bash
 npm install
-cp .env.example .env.local     # set DATABASE_URL, SESSION_SECRET (32+ chars), ADMIN_EMAIL / ADMIN_PASSWORD
-npm run db:setup               # migrate + idempotent seed (catalogue, settings, demo user, owner, sample orders)
+cp .env.example .env.local     # set SESSION_SECRET (32+ chars), ADMIN_EMAIL / ADMIN_PASSWORD
+npm run db:dev                 # own terminal: local PostgreSQL; the first run migrates and seeds it
 npm run dev                    # http://localhost:3200
 ```
+
+Local development and tests use only the local database from `npm run db:dev` (`DATABASE_URL=postgres://postgres:postgres@127.0.0.1:54328/manan_dev`, data in `.dev-db/`). The production database URL is set only in the Vercel project; never put it in `.env.local`.
 
 | Command | |
 |---|---|
 | `npm run dev` / `build` / `start` | Next.js on port 3200 |
+| `npm run db:dev` | local development PostgreSQL (first run: migrate + seed); keep it running while you work |
 | `npm run lint` · `typecheck` | ESLint (incl. React Compiler rules) · `tsc --noEmit` |
 | `npm test` | unit + integration (integration starts its own throwaway Postgres — never the live DB) |
 | `npm run test:e2e` | Playwright shopping-to-admin journey (`E2E_BASE_URL=https://… npm run test:e2e` for a deployed site) |

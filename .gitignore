@@ -19,6 +19,7 @@ next-env.d.ts
 
 # local data and scratch
 /.data/
+/.dev-db/
 /artifacts/
 /tmp/
 
