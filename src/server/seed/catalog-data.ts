@@ -106,7 +106,6 @@ export const COLLECTIONS = [
   },
 ]
 
-const TOPS = ['XS', 'S', 'M', 'L', 'XL']
 const TOPS_XXL = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 const WOMEN_TOPS = ['XS', 'S', 'M', 'L']
 const MEN_TOPS = ['S', 'M', 'L', 'XL', 'XXL']

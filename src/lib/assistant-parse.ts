@@ -23,7 +23,7 @@ export interface ParsedQuestion {
 }
 
 const POLICY_PATTERNS: [PolicyTopic, RegExp][] = [
-  ['change_order', /(захиалг\S*\s+(өөрчл|солих|цуцл)|өөрчлөх\s+боломж|change (my )?order|cancel)/],
+  ['change_order', /(захиалг\S*\s+(өөрч|солих|соль|цуцл)|өөрчлөх\s+боломж|change (my )?order|cancel)/],
   ['exchange', /(хэмжээ\S*\s+соли|солиул|солих|exchange)/],
   ['returns', /(буцаа|буцаах|буцааж|return|refund)/],
   ['delivery', /(хүргэлт|хүргэх|хүргэдэг|хүргүүл|delivery|shipping|орон нутаг|аймаг\S* руу)/],
@@ -39,9 +39,10 @@ const WAIST_RE = /(?:^|\s)(2[6-9]|3[0-8])(?:\s*(?:размер|хэмжээ|size
 /** "200,000", "200 000", "200000", "200 мянга", "200k" → 200000 */
 function parseAmount(raw: string): number | null {
   const s = raw.toLowerCase().replace(/\s+/g, ' ').trim()
-  const thousands = /(\d+(?:[.,]\d+)?)\s*(мянга|мянган|k|к)\b/.exec(s)
+  // No \b here: JavaScript word boundaries are ASCII-only and never match after Cyrillic.
+  const thousands = /(\d+(?:[.,]\d+)?)\s*(мянга|мянган|k|к)(?![\p{L}])/u.exec(s)
   if (thousands) return Math.round(Number(thousands[1].replace(',', '.')) * 1000)
-  const millions = /(\d+(?:[.,]\d+)?)\s*(сая|m\b)/.exec(s)
+  const millions = /(\d+(?:[.,]\d+)?)\s*(сая|m(?![\p{L}]))/u.exec(s)
   if (millions) return Math.round(Number(millions[1].replace(',', '.')) * 1_000_000)
   const digits = s.replace(/[^\d]/g, '')
   if (!digits) return null
@@ -86,8 +87,20 @@ export function parseColors(text: string): ColorFamily[] {
   return out.filter((f) => !(f === 'black' && /хар(ах|уул|ж|сан|ъя)/u.test(t) && !/(^|\s)хар(\s|$)/u.test(t)))
 }
 
-const CONSTRAINT_WORDS =
-  /(хамгийн|хямд|үнэтэй|доош|дээш|хүртэл|бага|илүү|төгрөг|₮|размер|хэмжээ|size|байгаа|байна|юу|уу|үү|вэ|бэ|ямар|аль|танайд|танай|надад|хэрэгтэй|үнэ|өнгө|өнгийн|ширхэг|үлдэгдэл|бий|бол|л\b|of|in|do|you|have|any|what|which|is|are|the|cheapest|available|price|ялгаа|харьцуул|эдгээр|энэ|тэр|өвөл\S*|winter|тохирох|зөвлө\S*|санал болго\S*)/gu
+/** Words that describe the question, not the product. Whole words, any suffix. */
+const CONSTRAINT_WORDS = new RegExp(
+  String.raw`(^|\s)(` +
+    [
+      'хамгийн', 'хямд\\S*', 'үнэтэй', 'доош', 'дээш', 'хүртэл', 'бага', 'илүү', 'төгрөг\\S*', 'размер\\S*', 'хэмжээ\\S*', 'size',
+      'байгаа', 'байна', 'байх', 'юу', 'уу', 'үү', 'вэ', 'бэ', 'нь', 'юм', 'ямар', 'аль', 'хэд', 'хэдэн', 'танайд', 'танай', 'надад',
+      'хэрэгтэй', 'үнэ\\S*', 'өнгө\\S*', 'ширхэг', 'үлдэгдэл\\S*', 'бий', 'бол', 'л', 'of', 'in', 'do', 'you', 'have', 'any', 'what',
+      'which', 'is', 'are', 'the', 'cheapest', 'available', 'price', 'ялгаа\\S*', 'харьцуул\\S*', 'эдгээр\\S*', 'энэ\\S*', 'тэр\\S*',
+      'өвөл\\S*', 'winter', 'хүйтэн\\S*', 'тохир\\S*', 'зөвлө\\S*', 'санал', 'болго\\S*', 'хувцас\\S*', 'бараа\\S*', 'зүйл\\S*',
+      'авмаар', 'авах', 'худалдаж',
+    ].join('|') +
+    String.raw`)(?=\s|$)`,
+  'gu',
+)
 
 export function parseQuestion(raw: string): ParsedQuestion {
   const text = raw.slice(0, 600)
@@ -101,8 +114,12 @@ export function parseQuestion(raw: string): ParsedQuestion {
   productQuery = productQuery
     .replace(/\d[\d\s,.]*/g, ' ')
     .replace(SIZE_RE, ' ')
+    // Applied twice: adjacent constraint words share the whitespace between them.
     .replace(CONSTRAINT_WORDS, ' ')
-    .replace(/\s+/g, ' ')
+    .replace(CONSTRAINT_WORDS, ' ')
+    .split(/\s+/)
+    .filter((w) => w.length > 2)
+    .join(' ')
     .trim()
   return {
     text,

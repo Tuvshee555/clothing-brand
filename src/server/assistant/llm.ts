@@ -2,6 +2,7 @@
 // tool to call; every product fact it may state comes back from a tool. After
 // the answer is written, a fact check rejects any money amount or stock count
 // that did not appear in this turn's tool results.
+import { amountsIn, stockCountsIn } from '@/lib/fact-check'
 import { POLICY_SLUGS } from '@/lib/settings'
 import { STARTER_SUGGESTIONS, type AssistantReply } from './engine'
 import {
@@ -149,6 +150,14 @@ interface TurnTrace {
   amounts: Set<number>
 }
 
+/** Image fields are for the chat cards, not the model. */
+function withoutImage<T extends { image: string | null; imageAlt: string }>(facts: T): Omit<T, "image" | "imageAlt"> {
+  const copy: Partial<T> = { ...facts }
+  delete copy.image
+  delete copy.imageAlt
+  return copy as Omit<T, "image" | "imageAlt">
+}
+
 async function runTool(tc: ToolContext, name: string, rawArgs: string, trace: TurnTrace): Promise<unknown> {
   let args: Record<string, unknown> = {}
   try {
@@ -164,7 +173,7 @@ async function runTool(tc: ToolContext, name: string, rawArgs: string, trace: Tu
         trace.amounts.add(p.minPrice)
         trace.amounts.add(p.maxPrice)
       }
-      return { count: list.length, products: list.map(productFacts).map(({ image: _image, imageAlt: _alt, ...rest }) => rest) }
+      return { count: list.length, products: list.map((p) => withoutImage(productFacts(p))) }
     }
     case 'get_product': {
       const result = await productDetail(tc, String(args.product ?? ''))
@@ -172,7 +181,7 @@ async function runTool(tc: ToolContext, name: string, rawArgs: string, trace: Tu
         trace.slugs.push(result.product.slug)
         trace.amounts.add(result.product.price)
         trace.amounts.add(result.product.maxPrice)
-        const { image: _image, imageAlt: _alt, ...rest } = result.product
+        const rest = withoutImage(result.product)
         return { found: 1, product: rest }
       }
       return result
@@ -195,7 +204,7 @@ async function runTool(tc: ToolContext, name: string, rawArgs: string, trace: Tu
         trace.amounts.add(p.price)
         trace.amounts.add(p.maxPrice)
       }
-      return { products: result.products.map(({ image: _image, imageAlt: _alt, ...rest }) => rest) }
+      return { products: result.products.map(withoutImage) }
     }
     case 'get_policy': {
       const result = getPolicy(tc, String(args.topic ?? ''))
@@ -218,18 +227,6 @@ async function runTool(tc: ToolContext, name: string, rawArgs: string, trace: Tu
     default:
       return { error: `unknown tool ${name}` }
   }
-}
-
-/** Money amounts written in a reply: "219,000₮", "219 000 төгрөг", "219 мянга". */
-export function amountsIn(text: string): number[] {
-  const out: number[] = []
-  for (const m of text.matchAll(/(\d{1,3}(?:[,\s.]\d{3})+|\d{4,})\s*(?:₮|төгрөг|tögrög|mnt)/giu)) out.push(Number(m[1].replace(/[,\s.]/g, '')))
-  for (const m of text.matchAll(/(\d{1,4})\s*мянга/giu)) out.push(Number(m[1]) * 1000)
-  return out
-}
-
-export function stockCountsIn(text: string): number[] {
-  return [...text.matchAll(/(\d{1,4})\s*ширхэг/giu)].map((m) => Number(m[1]))
 }
 
 /** Problems with a draft reply (empty = passes). */

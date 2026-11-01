@@ -140,7 +140,7 @@ const SYNONYMS: [string[], string[]][] = [
   [['оверсайз', 'oversized', 'том хэмжээтэй', 'чөлөөтэй'], ['oversized', 'чөлөөтэй']],
 ]
 
-const STOP_WORDS = new Set(['байна', 'байгаа', 'юу', 'уу', 'үү', 'вэ', 'бэ', 'ямар', 'танайд', 'танай', 'надад', 'хэрэгтэй', 'the', 'a', 'and', 'for', 'with'])
+const STOP_WORDS = new Set(['байна', 'байгаа', 'юу', 'уу', 'үү', 'вэ', 'бэ', 'нь', 'юм', 'ямар', 'аль', 'танайд', 'танай', 'надад', 'хэрэгтэй', 'the', 'a', 'and', 'for', 'with'])
 
 export function normalizeText(value: string): string {
   return value
@@ -175,8 +175,9 @@ export function matchesQuery(p: CatalogProduct, query: string, tagLabels: Record
   const text = searchableText(p, tagLabels)
   return words.every((word) => {
     if (text.includes(word)) return true
-    // Mongolian is suffixing: "хүрмүүд", "свитерүүд" — try a shortened stem.
-    if (word.length >= 5 && text.includes(word.slice(0, word.length - 2))) return true
+    // Mongolian is suffixing: "свитерүүд", "жинснүүд" — try a stem, but never one so short
+    // that it matches unrelated words ("хүр" would match "хүртэл").
+    if (word.length >= 7 && text.includes(word.slice(0, word.length - 3))) return true
     for (const [inputs, targets] of SYNONYMS) {
       if (inputs.some((i) => word === i || (i.length >= 4 && word.startsWith(i)))) {
         if (targets.some((target) => text.includes(target))) return true
@@ -184,6 +185,11 @@ export function matchesQuery(p: CatalogProduct, query: string, tagLabels: Record
     }
     return false
   })
+}
+
+/** Like matchesQuery, but only against the product name — the strongest signal. */
+export function nameMatches(p: CatalogProduct, query: string): boolean {
+  return matchesQuery({ ...p, categoryName: '', shortDescription: '', material: '', fit: null, tags: [], colors: [] }, query)
 }
 
 // ---------------------------------------------------------------------------

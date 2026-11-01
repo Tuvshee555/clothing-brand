@@ -8,7 +8,8 @@ import type { Database } from '@/server/db/client'
 import * as t from '@/server/db/schema'
 import { enforceRateLimit, LIMITS } from '@/server/security/rate-limit'
 import { answerFromCatalog, type AssistantReply } from './engine'
-import { amountsIn, answerWithLlm, costMicroUsd } from './llm'
+import { amountsIn } from '@/lib/fact-check'
+import { answerWithLlm, costMicroUsd } from './llm'
 import { buildToolContext } from './tools'
 
 export const assistantInput = z.object({

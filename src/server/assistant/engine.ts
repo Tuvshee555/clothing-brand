@@ -3,7 +3,7 @@
 // fallback whenever an AI reply fails its fact check.
 import { parseQuestion, type ParsedQuestion } from '@/lib/assistant-parse'
 import { sizeLabel, TAG_LABELS } from '@/lib/catalog'
-import { COLOR_FAMILIES, filterCatalog, type CatalogProduct } from '@/lib/catalog-filter'
+import { COLOR_FAMILIES, filterCatalog, nameMatches, type CatalogProduct } from '@/lib/catalog-filter'
 import { formatMoney } from '@/lib/money'
 import { POLICY_SLUGS, type PolicyKey } from '@/lib/settings'
 import { cardsFor, checkStock, getPolicy, productFacts, type ProductFacts, type ToolContext } from './tools'
@@ -149,8 +149,15 @@ export function answerFromCatalog(tc: ToolContext, message: string, context: { s
     }
   }
 
+  // "Winter" narrows any result to products tagged for winter.
+  if (q.winter && matched.length > 0) {
+    const winter = matched.filter((p) => p.tags.includes('winter'))
+    if (winter.length > 0) matched = winter
+  }
+
+  // "These" refers to what was just shown, before any loose word match.
   if (q.compare) {
-    const pool = matched.length >= 2 ? matched : contextProducts
+    const pool = contextProducts.length >= 2 ? contextProducts : matched
     if (pool.length >= 2) return compareAnswer(tc, pool)
   }
 
@@ -158,7 +165,12 @@ export function answerFromCatalog(tc: ToolContext, message: string, context: { s
   if (q.stockQuestion && matched.length === 0 && contextProducts.length > 0 && (q.sizes.length || q.colors.length)) {
     return stockAnswer(tc, contextProducts[0], q)
   }
-  if (q.stockQuestion && matched.length === 1 && (q.sizes.length || q.colors.length)) return stockAnswer(tc, matched[0], q)
+  if (q.stockQuestion && (q.sizes.length || q.colors.length)) {
+    if (matched.length === 1) return stockAnswer(tc, matched[0], q)
+    // Several matches (e.g. the whole "Hoodie, свитшот" category): the one named so wins.
+    const named = query ? matched.filter((p) => nameMatches(p, query)) : []
+    if (named.length === 1) return stockAnswer(tc, named[0], q)
+  }
 
   if (matched.length > 0) {
     if (q.cheapest || q.priciest) {
@@ -171,6 +183,11 @@ export function answerFromCatalog(tc: ToolContext, message: string, context: { s
         suggestions: [`${top.name} L размер байгаа юу?`, 'Хүргэлтийн нөхцөл ямар вэ?'],
         mode: 'catalog',
       }
+    }
+    // Products named after the query word come first ("hoodie" before "worn over a hoodie").
+    if (query) {
+      const named = matched.filter((p) => nameMatches(p, query))
+      if (named.length > 0) matched = [...named, ...matched.filter((p) => !named.includes(p))]
     }
     const intro = q.winter
       ? 'Өвлийн хүйтэнд тохирох (дулаан, давхарлаж өмсөх) бараанууд:'

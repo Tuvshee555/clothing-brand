@@ -1,8 +1,8 @@
 import { formatMoney } from '@/lib/money'
 
-/** Daily bars for the last N days (server-rendered SVG, no client JS). */
-export function DailyBars({ days, data }: { days: number; data: { day: string; revenue: number; orders: number }[] }) {
-  const today = new Date(Date.now() + 8 * 3_600_000) // Ulaanbaatar date
+/** Daily bars for the last N days (server-rendered SVG, no client JS). `today` is the Ulaanbaatar date, YYYY-MM-DD. */
+export function DailyBars({ days, data, today: todayKey }: { days: number; data: { day: string; revenue: number; orders: number }[]; today: string }) {
+  const today = new Date(`${todayKey}T00:00:00Z`)
   const series = Array.from({ length: days }, (_, i) => {
     const d = new Date(today)
     d.setUTCDate(d.getUTCDate() - (days - 1 - i))

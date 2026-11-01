@@ -72,7 +72,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       <div className="mt-6 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
         <Card title="Сүүлийн 14 хоног" actions={<span className="text-[12px] text-stone-500">Захиалгын дүн, өдрөөр</span>}>
-          <DailyBars days={14} data={d.daily} />
+          <DailyBars days={14} data={d.daily} today={d.today} />
         </Card>
         <Card title="Их зарагдсан бараа">
           {d.topProducts.length === 0 ? (

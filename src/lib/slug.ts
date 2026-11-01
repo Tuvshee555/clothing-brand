@@ -8,8 +8,10 @@ const MN_TO_LATIN: Record<string, string> = {
 }
 
 export function slugify(name: string, maxLength = 64): string {
-  return [...name.toLowerCase()]
-    .map((ch) => MN_TO_LATIN[ch] ?? ch)
+  const chars = [...name.toLowerCase()]
+  return chars
+    // «е» reads "ye" only at the start of a word: Ерөнхий → yerunkhii, свитер → sviter.
+    .map((ch, i) => (ch === 'е' && i > 0 && /\p{L}/u.test(chars[i - 1]) ? 'e' : (MN_TO_LATIN[ch] ?? ch)))
     .join('')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')

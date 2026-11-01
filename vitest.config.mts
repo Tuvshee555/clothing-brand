@@ -24,6 +24,9 @@ export default defineConfig({
           include: ['tests/integration/**/*.test.ts'],
           environment: 'node',
           globalSetup: ['tests/integration/global-setup.ts'],
+          // Services get their own database handle; this only satisfies modules that
+          // build the app-wide pool at import time (it never connects).
+          env: { DATABASE_URL: 'postgres://unused:unused@127.0.0.1:1/unused', NODE_ENV: 'test' },
           testTimeout: 30_000,
           hookTimeout: 180_000,
         },

@@ -153,7 +153,9 @@ export async function getDashboard(actor: Actor) {
     .orderBy(desc(t.inventoryTransactions.createdAt))
     .limit(6)
 
-  return { totals, products, stock, daily, topProducts, recentOrders, lowStock, events, stockMoves }
+  const today = await db.execute<{ day: string }>(sql`select to_char((now() at time zone 'Asia/Ulaanbaatar')::date, 'YYYY-MM-DD') as day`)
+
+  return { totals, products, stock, daily, today: today.rows[0].day, topProducts, recentOrders, lowStock, events, stockMoves }
 }
 
 // ---------------------------------------------------------------------------
