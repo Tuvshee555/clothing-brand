@@ -6,7 +6,7 @@ import { AdminMobileNav, AdminSidebar } from '@/components/admin/nav'
 import { ROLE_LABELS } from '@/lib/roles'
 import { BRAND } from '@/lib/brand'
 import { logoutAction } from '@/server/actions/auth'
-import { requireAdminPage } from '@/server/auth/current'
+import { getActor } from '@/server/auth/current'
 import { db } from '@/server/db'
 import * as t from '@/server/db/schema'
 import { orderScope } from '@/server/queries/admin'
@@ -14,7 +14,9 @@ import { orderScope } from '@/server/queries/admin'
 export const instant = false
 
 async function Shell({ children }: { children: React.ReactNode }) {
-  const actor = await requireAdminPage('/admin')
+  // Each page guards itself with its own path, so login can return the visitor to it.
+  const actor = await getActor()
+  if (!actor) return <>{children}</>
   const [pending] = await db
     .select({ n: sql<number>`count(*)::int` })
     .from(t.orders)
