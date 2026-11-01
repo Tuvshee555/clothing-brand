@@ -4,7 +4,7 @@
   "private": true,
   "description": "MANAN — fictional premium fashion label: storefront, variant-level inventory, orders, AI shopping assistant and admin dashboard (Ursgal Digital portfolio demonstration).",
   "engines": {
-    "node": ">=22.12.0"
+    "node": "24.x"
   },
   "scripts": {
     "dev": "next dev --port 3200",
