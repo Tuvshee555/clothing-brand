@@ -128,8 +128,10 @@ function systemPrompt(tc: ToolContext, pageSlug: string | null): string {
     `You are the shopping assistant of ${tc.info.storeName}, a fictional premium fashion label. This online store is a portfolio demonstration by Ursgal Digital: products and prices are sample data and no real purchase or payment happens.`,
     'Reply in natural, warm, concise Mongolian Cyrillic (even if the customer writes Mongolian in Latin letters). If the customer writes in English, reply in English.',
     'FACTS RULE: Every product name, price, colour, size, stock level, material, delivery fee or delivery time you mention must come from a tool result in this conversation. Call a tool before answering any product, stock, price or policy question. Never guess, round or invent numbers. If the tools do not contain the answer, say you do not have that information and suggest asking staff.',
-    'Before saying a colour or size is available, call check_stock. Quote stock counts exactly as returned.',
-    'Link products as markdown links to their url, e.g. [Name](/products/slug). Keep answers short: 1–4 sentences or a short bullet list (max 6 items).',
+    'Before saying a colour or size is available, call check_stock. Quote stock counts exactly as returned. Never say "all sizes are available" when a tool lists sold-out sizes (soldOut) — name them instead.',
+    'To compare products, call compare_products and compare only the returned material, fit, price, colours and in-stock sizes. Do not add general fabric knowledge that is not in the product data.',
+    `Category slugs for search_products: ${tc.categories.map((c) => `${c.slug} (${c.name})`).join(', ')}. Jackets and coats are "outerwear".`,
+    'Link products as markdown links using the url field exactly as returned (relative, no domain, no spaces), e.g. [Name](/products/slug). Keep answers short: 1–4 sentences or a short bullet list (max 6 items).',
     'Never place an order or claim you did. To buy, the customer opens the product page, picks colour and size, adds to cart and checks out. Do not promise discounts, gifts or delivery dates beyond the delivery policy.',
     'Only discuss this store, its products, sizing, delivery, returns, exchanges, payment and ordering. Politely decline anything else.',
     page ? `The customer is currently viewing the product "${page.name}" (slug: ${page.slug}). Questions like "is L available?" refer to it.` : '',
@@ -247,11 +249,11 @@ export function factCheck(reply: string, trace: TurnTrace, tc: ToolContext, user
   return problems
 }
 
-async function chat(messages: ApiMessage[], signal: AbortSignal) {
+async function chat(messages: ApiMessage[], signal: AbortSignal, toolChoice: "auto" | "required") {
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
-    body: JSON.stringify({ model: assistantModel(), messages, tools: TOOLS, tool_choice: 'auto', temperature: 0.2, max_completion_tokens: 700 }),
+    body: JSON.stringify({ model: assistantModel(), messages, tools: TOOLS, tool_choice: toolChoice, temperature: 0.2, max_completion_tokens: 700 }),
     signal,
   })
   if (!res.ok) throw new Error(`OpenAI HTTP ${res.status}: ${(await res.text()).slice(0, 200)}`)
@@ -274,7 +276,8 @@ export async function answerWithLlm(
   let problems: string[] = []
   try {
     for (let round = 0, retried = false; round < 6; round++) {
-      const data = await chat(messages, controller.signal)
+      // The first step must consult the database: every answer starts from tool results.
+      const data = await chat(messages, controller.signal, round === 0 ? 'required' : 'auto')
       usage.inputTokens += data.usage?.prompt_tokens ?? 0
       usage.outputTokens += data.usage?.completion_tokens ?? 0
       const msg = data.choices[0]?.message
@@ -288,7 +291,13 @@ export async function answerWithLlm(
         }
         continue
       }
-      const text = (msg.content ?? '').trim()
+      // Models sometimes write "]( /products/x )" or invent a domain ("https://manan.mn/products/x");
+      // normalise to this site's own relative paths so links render and never leave the store.
+      const text = (msg.content ?? '')
+        .trim()
+        .replace(/\]\(\s+/g, '](')
+        .replace(/(\]\([^)\s]+)\s+\)/g, '$1)')
+        .replace(/\]\(https?:\/\/[^/\s)]+(\/(?:products|help|shop|collections)\/)/g, ']($1')
       problems = factCheck(text, trace, tc, opts.userAmounts)
       if (problems.length === 0 && text) {
         const linked = [...text.matchAll(/\/products\/([a-z0-9-]+)/g)].map((m) => m[1])

@@ -52,6 +52,8 @@ export interface ProductFacts {
   sizes: string[]
   availability: string
   inStock: Record<string, string[]>
+  /** Sizes listed for the colour but currently at zero — so "all sizes available" is never assumed. */
+  soldOut: Record<string, string[]>
   material: string
   fit: string | null
   image: string | null
@@ -60,9 +62,12 @@ export interface ProductFacts {
 
 export function productFacts(p: CatalogProduct): ProductFacts {
   const inStock: Record<string, string[]> = {}
+  const soldOut: Record<string, string[]> = {}
   for (const c of p.colors) {
-    const sizes = p.variants.filter((v) => v.colorId === c.id && v.isActive && v.stock > 0).map((v) => sizeLabel(v.size))
-    inStock[c.name] = sizes
+    const active = p.variants.filter((v) => v.colorId === c.id && v.isActive)
+    inStock[c.name] = active.filter((v) => v.stock > 0).map((v) => sizeLabel(v.size))
+    const out = active.filter((v) => v.stock <= 0).map((v) => sizeLabel(v.size))
+    if (out.length) soldOut[c.name] = out
   }
   return {
     name: p.name,
@@ -75,6 +80,7 @@ export function productFacts(p: CatalogProduct): ProductFacts {
     sizes: p.sizes.map(sizeLabel),
     availability: AVAILABILITY_LABELS[availabilityOf(p)],
     inStock,
+    soldOut,
     material: p.material,
     fit: p.fit,
     image: p.images[0]?.url ?? null,
@@ -123,13 +129,25 @@ export interface SearchArgs {
   limit?: number | null
 }
 
+/** Category by slug or (part of) its Mongolian name; null when nothing fits. */
+function resolveCategory(tc: ToolContext, value: string): string | null {
+  const v = normalizeText(value)
+  const found =
+    tc.categories.find((c) => c.slug === value.trim().toLowerCase()) ??
+    tc.categories.find((c) => normalizeText(c.name) === v) ??
+    tc.categories.find((c) => normalizeText(c.name).split(' ').some((w) => w.length > 2 && (v.includes(w) || w.includes(v))))
+  return found?.slug ?? null
+}
+
 export function searchProducts(tc: ToolContext, args: SearchArgs): CatalogProduct[] {
   const family = familyOf(args.color)
-  const category = args.category ? tc.categories.find((c) => c.slug === args.category || normalizeText(c.name) === normalizeText(args.category!))?.slug ?? null : null
+  const category = args.category ? resolveCategory(tc, args.category) : null
+  // An unrecognised category must narrow the search, never silently widen it to everything.
+  const query = [args.query, args.category && !category ? args.category : null].filter(Boolean).join(' ') || null
   let list = filterCatalog(
     tc.catalog,
     {
-      q: args.query ?? null,
+      q: query,
       category,
       colors: family ? [family] : undefined,
       sizes: args.size ? [args.size.toUpperCase()] : undefined,

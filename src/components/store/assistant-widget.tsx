@@ -20,7 +20,7 @@ function RichText({ text, onNavigate }: { text: string; onNavigate: () => void }
   const blocks = text.split(/\n{2,}/)
   const inline = (s: string, key: string): ReactNode[] => {
     const out: ReactNode[] = []
-    const re = /\*\*([^*]+)\*\*|\[([^\]]+)\]\((\/[^)\s]*)\)/g
+    const re = /\*\*([^*]+)\*\*|\[([^\]]+)\]\(\s*(\/[^)\s]*)\s*\)/g
     let last = 0
     let m: RegExpExecArray | null
     let i = 0
