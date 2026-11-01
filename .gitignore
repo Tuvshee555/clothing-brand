@@ -1,0 +1,42 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+
+# next.js / build output
+/.next/
+/out/
+/build
+*.tsbuildinfo
+next-env.d.ts
+
+# testing
+/coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# local data and scratch
+/.data/
+/artifacts/
+/tmp/
+
+# secrets — never commit (the GitHub repo is public)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# image sourcing work area (originals are re-downloadable; only optimised output is committed)
+/scripts/images/.cache/
+
+# vercel
+.vercel
+
+# os / editors
+.DS_Store
+Thumbs.db
+*.log
+npm-debug.log*
