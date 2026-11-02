@@ -47,33 +47,38 @@ export function RichText({ text, onNavigate }: { text: string; onNavigate?: () =
   return (
     <div className="space-y-2">
       {blocks.map((block, bi) => {
-        const lines = block.split('\n')
-        const bullets = lines.filter((l) => l.startsWith('- '))
-        if (bullets.length && bullets.length === lines.length - (lines[0].startsWith('- ') ? 0 : 1)) {
-          const head = lines[0].startsWith('- ') ? null : lines[0]
-          return (
-            <Fragment key={bi}>
-              {head && <p>{inline(head, `h${bi}`)}</p>}
-              <ul className="space-y-1">
-                {bullets.map((l, li) => (
-                  <li key={li} className="flex gap-2">
-                    <span aria-hidden>·</span>
-                    <span>{inline(l.slice(2), `b${bi}-${li}`)}</span>
-                  </li>
-                ))}
-              </ul>
-            </Fragment>
-          )
+        // Consecutive "- " lines become one list; other lines stay as text, in order.
+        const groups: { bullets: boolean; lines: string[] }[] = []
+        for (const line of block.split('\n')) {
+          const bullet = line.startsWith('- ')
+          const last = groups[groups.length - 1]
+          if (last && last.bullets === bullet) last.lines.push(bullet ? line.slice(2) : line)
+          else groups.push({ bullets: bullet, lines: [bullet ? line.slice(2) : line] })
         }
         return (
-          <p key={bi}>
-            {lines.map((l, li) => (
-              <Fragment key={li}>
-                {li > 0 && <br />}
-                {inline(l, `p${bi}-${li}`)}
-              </Fragment>
-            ))}
-          </p>
+          <Fragment key={bi}>
+            {groups.map((g, gi) =>
+              g.bullets ? (
+                <ul key={gi} className="space-y-1">
+                  {g.lines.map((l, li) => (
+                    <li key={li} className="flex gap-2">
+                      <span aria-hidden>·</span>
+                      <span>{inline(l, `b${bi}-${gi}-${li}`)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p key={gi}>
+                  {g.lines.map((l, li) => (
+                    <Fragment key={li}>
+                      {li > 0 && <br />}
+                      {inline(l, `p${bi}-${gi}-${li}`)}
+                    </Fragment>
+                  ))}
+                </p>
+              ),
+            )}
+          </Fragment>
         )
       })}
     </div>
