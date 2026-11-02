@@ -18,7 +18,7 @@ export interface Evidence {
 }
 
 const CLAIMS: [RegExp, string][] = [
-  [/(?:төлбөр\S*\s+(?:нь\s+)?(?:орсон|төлөгдсөн|баталгаажсан|хүлээн\s+авлаа|амжилттай)|payment\s+(?:is\s+|was\s+|has\s+been\s+)?(?:received|confirmed|successful))/iu, 'payment_claim'],
+  [/(?:төлбөр\S*\s+(?:(?:нь|тань|чинь|таны)\s+)?(?:орсон|төлөгдсөн|баталгаажсан|хүлээн\s+авлаа|амжилттай)|payment\s+(?:is\s+|was\s+|has\s+been\s+)?(?:received|confirmed|successful))/iu, 'payment_claim'],
   [/(?:захиалга\S*\s+(?:тань\s+|чинь\s+)?(?:үүслээ|үүсгэлээ|бүртгэгдлээ|баталгаажлаа|хийгдлээ)|order\s+(?:has\s+been\s+|was\s+|is\s+)?(?:placed|created|confirmed))/iu, 'order_claim'],
   [/\d+\s*%/u, 'percent_claim'],
 ]

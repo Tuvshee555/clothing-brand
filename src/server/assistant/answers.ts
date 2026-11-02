@@ -126,6 +126,8 @@ export function variantQuery(p: CatalogProduct, u: Understood, focus: Focus | nu
     fromMemory.size = true
   }
   if (p.sizes.length === 1 && sizes.length === 0) sizes = [p.sizes[0]]
+  // One colour only: a size names the exact variant ("Шулуун жинс 32" is Хар хөх / 32).
+  if (p.colors.length === 1 && colors.length === 0 && unknownColors.length === 0 && sizes.length > 0) colors = [p.colors[0]]
   return { colors, unknownColors, sizes, unknownSizes, fromMemory }
 }
 

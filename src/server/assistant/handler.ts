@@ -75,7 +75,8 @@ export async function logChatProblem(
 }
 
 function owns(c: Conversation, speaker: Speaker): boolean {
-  if (speaker.channel === 'test') return c.channel === 'test' && !!speaker.testUserId && c.testUserId === speaker.testUserId
+  // The public demo is one shared user: its test chats also belong to the visitor's browser.
+  if (speaker.channel === 'test') return c.channel === 'test' && !!speaker.testUserId && c.testUserId === speaker.testUserId && (c.visitorId ?? null) === (speaker.visitorKey ?? null)
   return c.channel === 'website' && !!speaker.visitorKey && c.visitorId === speaker.visitorKey
 }
 
@@ -88,7 +89,7 @@ export async function findOwnConversation(db: Database, conversationId: string |
 async function createConversation(db: Database, speaker: Speaker): Promise<Conversation> {
   const [c] = await db
     .insert(t.chatConversations)
-    .values({ channel: speaker.channel, visitorId: speaker.channel === 'website' ? speaker.visitorKey : null, testUserId: speaker.testUserId ?? null, isDemo: true })
+    .values({ channel: speaker.channel, visitorId: speaker.visitorKey, testUserId: speaker.testUserId ?? null, isDemo: true })
     .returning()
   return c
 }

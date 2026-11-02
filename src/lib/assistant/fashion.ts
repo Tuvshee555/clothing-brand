@@ -52,8 +52,20 @@ export const FASHION_ALIASES: Alias[] = [
   [/\b(?:tsutsgii|cream)\b/gi, 'цөцгий'],
   [/\b(?:yagaan|pink)\b/gi, 'ягаан'],
   [/\b(?:latte)\b/gi, 'латте'],
+  // seasons, occasions, audiences
+  [/\b(?:uvliin|ovliin|uvuliin)\b/gi, 'өвлийн'],
+  [/\b(?:uvul|uvuld|ovol|ovold)\b/gi, 'өвөл'],
+  [/\b(?:zunii|zuny|zund)\b/gi, 'зуны'],
+  [/\b(?:namriin|namar|namart)\b/gi, 'намрын'],
+  [/\b(?:huiten|hvjten)\b/gi, 'хүйтэн'],
+  [/\b(?:dulaan|dulaahan)\b/gi, 'дулаан'],
+  [/\b(?:ajild|ajliin|ofis|office)\b/gi, 'ажилд'],
+  [/\b(?:emegtei|emegteichuud|ohid)\b/gi, 'эмэгтэй'],
+  [/\b(?:eregtei|erchuud)\b/gi, 'эрэгтэй'],
   // sizes
+  [/\b(?:razmeruud|razmeruudiig|razmernuud)\b/gi, 'размерууд'],
   [/\b(?:razmer|razmeer|razmar|razmr|razmeriin|razmertai)\b/gi, 'размер'],
+  [/\b(?:bdag|baidag|bdg)\b/gi, 'байдаг'],
   [/\b(?:tom|tomdoh|tomdono)\b/gi, 'том'],
   [/\b(?:jijig|jijigdeh|jijigdene)\b/gi, 'жижиг'],
 ]

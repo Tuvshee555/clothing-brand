@@ -10,6 +10,7 @@ import { getActor } from '@/server/auth/current'
 import { db } from '@/server/db'
 import * as t from '@/server/db/schema'
 import { orderScope } from '@/server/queries/admin'
+import { countOpenHandovers } from '@/server/queries/assistant-admin'
 
 export const instant = false
 
@@ -17,11 +18,14 @@ async function Shell({ children }: { children: React.ReactNode }) {
   // Each page guards itself with its own path, so login can return the visitor to it.
   const actor = await getActor()
   if (!actor) return <>{children}</>
-  const [pending] = await db
-    .select({ n: sql<number>`count(*)::int` })
-    .from(t.orders)
-    .where(and(eq(t.orders.status, 'pending'), orderScope(actor)))
-  const badges = { '/admin/orders': pending?.n ?? 0 }
+  const [[pending], handovers] = await Promise.all([
+    db
+      .select({ n: sql<number>`count(*)::int` })
+      .from(t.orders)
+      .where(and(eq(t.orders.status, 'pending'), orderScope(actor))),
+    countOpenHandovers(actor),
+  ])
+  const badges = { '/admin/orders': pending?.n ?? 0, '/admin/assistant/handover': handovers }
   const userBlock = (
     <div className="space-y-2 px-2 text-[12.5px]">
       <p>

@@ -24,7 +24,7 @@ import {
   parseQuantity,
 } from '@/lib/chat/intents'
 import type { HandoffReason } from '@/lib/chat/handover'
-import { isCaseSuffixedForm, isOneEditApart, scriptOf } from '@/lib/chat/text'
+import { isCaseSuffixedForm, isOneEditApart, phoneticLatinText, phoneticTokenMatches, scriptOf } from '@/lib/chat/text'
 
 export type Topic =
   | 'price'
@@ -118,7 +118,7 @@ const T = {
 }
 
 const POLICY: [PolicyTopic, RegExp][] = [
-  ['change_order', /(?:захиалг\S*\s+(?:\S+\s+)?(?:өөрчл|цуцл)|cancel\s+(?:my\s+)?order|change\s+(?:my\s+)?order)/iu],
+  ['change_order', /(?:захиалг\S*\s+(?:\S+\s+)?(?:өөрч|цуца|цуцл)|cancel\s+(?:my\s+)?order|change\s+(?:my\s+)?order)/iu],
   ['tracking', /(?:захиалг\S*\s+(?:\S+\s+)?(?:явц|төлөв|шалга|хаана|хяна|байдал)|(?:явц|төлөв)\S*\s+(?:\S+\s+)?шалга|миний\s+захиалга|track|order\s+status|where\s+is\s+my\s+order)/iu],
   ['ordering', /(?:(?:яаж|хэрхэн)\s+(?:\S+\s+)?(?:захиал|худалдаж\s+ав)|захиалах\s+(?:вэ|уу)$|захиалга\s+(?:яаж|хэрхэн)|how\s+(?:do|can|to)\s+(?:i\s+)?(?:order|buy|purchase))/iu],
   ['size_guide', /(?:хэмжээний\s+хүснэгт|размерын\s+хүснэгт|хүснэгт|size\s+(?:chart|guide)|хэмжээ\s+авах\s+заавар)/iu],
@@ -209,7 +209,8 @@ export function understand(raw: string): Understood {
     cheapest: T.cheapest.test(probe),
     priciest: T.priciest.test(probe),
     catalogQuestion: T.catalog.test(norm) || T.catalog.test(text.toLowerCase()),
-    browse: /(?:^|\s)ямар(?:\s+ямар)?\s+(?:\S+\s+){1,2}(?:байна|байгаа|бий|байдаг|зардаг)|(?:^|\s)юу\s+(?:байна|байгаа)|what\s+\S+\s+do\s+you\s+have/iu.test(norm),
+    // ("ямар размер / өнгө / үнэ … байдаг" asks about a product, not a browse.)
+    browse: /(?:^|\s)ямар(?:\s+ямар)?\s+(?!(?:размер|хэмжээ|өнгө|үнэ|материал|даавуу)\S*\s)(?:\S+\s+){1,2}(?:байна|байгаа|бий|байдаг|зардаг)|(?:^|\s)юу\s+(?:байна|байгаа)|what\s+\S+\s+do\s+you\s+have/iu.test(norm),
     tags: TAG_PATTERNS.filter(([, re]) => re.test(probe)).map(([tag]) => tag),
     audience: /(?:эмэгтэй|эмэгтэйчүүд|охид|бүсгүй|women|female|\bher\b)/iu.test(probe)
       ? 'women'
@@ -227,7 +228,8 @@ export function understand(raw: string): Understood {
 // Which products a message names
 // ---------------------------------------------------------------------------
 
-const NAME_STOP = new Set(['ба', 'болон', 'and', 'the', 'with'])
+/** Not distinctive in a name: "өвлийн хувцас" asks for winter clothes, not for «Өвлийн пуховик». */
+const NAME_STOP = new Set(['ба', 'болон', 'and', 'the', 'with', 'өвлийн', 'зуны', 'намрын', 'хаврын'])
 
 function nameTokens(p: CatalogProduct): string[] {
   return normalizeText(p.name)
@@ -240,6 +242,15 @@ function tokenMatch(messageToken: string, nameToken: string): boolean {
   if (isCaseSuffixedForm(messageToken, nameToken) && messageToken.startsWith(nameToken)) return true
   return nameToken.length >= 5 && isOneEditApart(messageToken, nameToken)
 }
+
+/** Latin spellings of our (Cyrillic) names: "oksford" ~ "оксфорд", "noolooran" ~ "ноолууран". */
+function phoneticMatch(messageToken: string, nameToken: string): boolean {
+  const a = phoneticLatinText(messageToken)
+  const b = phoneticLatinText(nameToken)
+  return a.length >= 3 && b.length >= 3 && (a === b || (b.length >= 4 && phoneticTokenMatches(a, b) && a[0] === b[0]))
+}
+
+const matches = (m: string, t: string) => tokenMatch(m, t) || (/[a-z]/.test(m) && !/[a-z]/.test(t) && phoneticMatch(m, t))
 
 export interface ProductRefs {
   /** Products the message names, best first. One product = a clear reference; several = ask which. */
@@ -264,7 +275,7 @@ export function productRefs(u: Pick<Understood, 'norm' | 'garments'>, catalog: C
   const scored = catalog
     .map((p) => {
       const tokens = nameTokens(p)
-      const matched = tokens.filter((t) => msg.some((m) => tokenMatch(m, t)))
+      const matched = tokens.filter((t) => msg.some((m) => matches(m, t)))
       const unique = matched.filter((t) => frequency.get(t) === 1).length
       const full = matched.length === tokens.length && tokens.length > 0
       const score = unique * 2 + matched.length + (full ? 1 : 0)

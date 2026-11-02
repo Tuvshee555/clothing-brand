@@ -3,30 +3,19 @@
 // and the admin's test chat. Permission is checked by the action wrapper; the
 // *scope* is checked here: the public demo may only act on chats its own
 // browser started, and seeded sample chats are read-only for everyone.
-import { and, eq, ne, or, sql, type SQL } from 'drizzle-orm'
+import { and, eq, isNull, ne, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { assistantSettingsInput } from '@/lib/assistant/settings'
 import { actorLabel, audit } from '@/server/audit'
 import { ERR, ServiceError, type Actor, type ServiceContext } from '@/server/context'
 import * as t from '@/server/db/schema'
 import { handleCustomerMessage } from '@/server/assistant/handler'
+import { canActOn } from '@/server/queries/assistant-scope'
+
+export { canActOn, conversationScope } from '@/server/queries/assistant-scope'
 
 type Ctx = ServiceContext & { actor: Actor }
 type Conversation = typeof t.chatConversations.$inferSelect
-
-/** Conversations this actor may see (test chats are only ever their owner's, in "Try the chatbot"). */
-export function conversationScope(actor: Actor): SQL | undefined {
-  if (actor.role !== 'demo') return ne(t.chatConversations.channel, 'test')
-  return or(
-    eq(t.chatConversations.channel, 'sample'),
-    actor.visitorKey ? and(eq(t.chatConversations.channel, 'website'), eq(t.chatConversations.visitorId, actor.visitorKey)) : sql`false`,
-  )
-}
-
-export function canActOn(actor: Actor, c: Pick<Conversation, 'channel' | 'visitorId'>): boolean {
-  if (c.channel !== 'website') return false
-  return actor.role !== 'demo' || (!!actor.visitorKey && c.visitorId === actor.visitorKey)
-}
 
 const SCOPE_ERROR = () =>
   new ServiceError('demo_scope', 'Демо горимд зөвхөн та өөрөө энэ хөтчөөс эхлүүлсэн яриаг хүлээн авч, хариулна. Жишээ яриа зөвхөн харагдана.')
@@ -191,10 +180,16 @@ export async function saveAssistantSettings(ctx: Ctx, raw: unknown) {
 // ---------------------------------------------------------------------------
 
 export async function sendTestMessage(ctx: Ctx, raw: unknown) {
-  return handleCustomerMessage(ctx, raw, { channel: 'test', visitorKey: null, testUserId: ctx.actor.userId, ipHash: ctx.ipHash ?? `admin:${ctx.actor.userId}` })
+  return handleCustomerMessage(ctx, raw, { channel: 'test', visitorKey: testVisitorKey(ctx.actor), testUserId: ctx.actor.userId, ipHash: ctx.ipHash ?? `admin:${ctx.actor.userId}` })
 }
 
+/** The public demo is one shared user, so its test chats are also keyed by the visitor's browser. */
+export const testVisitorKey = (actor: Actor) => (actor.role === 'demo' ? actor.visitorKey : null)
+
 export async function resetTestChats(ctx: Ctx) {
-  await ctx.db.delete(t.chatConversations).where(and(eq(t.chatConversations.channel, 'test'), eq(t.chatConversations.testUserId, ctx.actor.userId)))
+  const key = testVisitorKey(ctx.actor)
+  await ctx.db
+    .delete(t.chatConversations)
+    .where(and(eq(t.chatConversations.channel, 'test'), eq(t.chatConversations.testUserId, ctx.actor.userId), key ? eq(t.chatConversations.visitorId, key) : isNull(t.chatConversations.visitorId)))
   return { reset: true }
 }

@@ -173,7 +173,14 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
 
   // ── Which products the message refers to ──
   const refs = productRefs(u, catalog)
-  const picked = u.numbered && candidates.length ? pickCandidate(input.text, candidates) : null
+  let picked = u.numbered && candidates.length ? pickCandidate(input.text, candidates) : null
+  // "2 L размер байгаа юу?": a pick from the last list followed by the question about it
+  // (but "30 размер…", "2 ширхэг…" are a size and a quantity, not a pick).
+  if (!picked && candidates.length) {
+    const lead = /^\s*(\d{1,2})\s*(?:[.)-]\s*|\s+)(?!(?:ширхэг|шир|ш|размер|хэмжээ|size|razmer|shirheg|sh)(?:\s|$))\S/iu.exec(input.text)
+    const n = lead ? Number(lead[1]) : 0
+    if (n >= 1 && n <= candidates.length) picked = candidates[n - 1]
+  }
   const variantFits = (p: CatalogProduct) => {
     const hues = new Set(u.colors.map((c) => c.hue))
     const colorOk = hues.size === 0 || p.colors.some((c) => [...huesOfColor(c)].some((h) => hues.has(h)))
@@ -194,6 +201,8 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
     if (focusProduct && refs.typed.includes(focusProduct) && (u.deictic || (!searching && asksAboutProduct))) product = focusProduct
     else if (refs.typed.length === 1 && !searching) product = refs.typed[0]
     else if (u.deictic && !searching) ambiguous = refs.typed.filter(variantFits)
+    // "Хар худи L бну?": a colour/size question over a small group (2–3 products) is checked for each.
+    else if (!searching && (u.colors.length > 0 || u.sizes.length > 0) && refs.typed.length <= 3) ambiguous = refs.typed.filter(variantFits)
   }
   // "Хар L байгаа юу?" right after a list: about the products just shown, not the whole catalogue.
   const recentList = state.candidates && now - state.candidates.at < 30 * 60_000 ? candidates : []

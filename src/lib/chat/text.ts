@@ -15,7 +15,7 @@ export type Alias = [RegExp, string]
  */
 const GENERIC_ALIASES: Alias[] = [
   // Before "bn uu", which would otherwise turn the greeting into "байгаа юу".
-  [/\b(?:sain\s*(?:baina|bn|bna)\s*uu|sn\s*bnuu|sain\s*uu|sainuu)\b/gi, 'сайн байна уу'],
+  [/\b(?:(?:sain|sn)\s*(?:baina|bn|bna)\s*uu|sn\s*bnuu|sain\s*uu|sainuu)\b/gi, 'сайн байна уу'],
   [/\b(?:une\s*hed\s*(?:ve|we)|unehedve|unehedwe)\b/gi, 'үнэ хэд вэ'],
   [/\b(?:hed\s*(?:ve|we)|hedve|hedwe|hedvee|hedwee)\b/gi, 'хэд вэ'],
   [/\b(?:bga\s*yu|bgaa\s*yu|bgaayu|baigaayu|bn\s*uu|bnuu|bnu|bainuu|baina\s*uu|baigaa\s*yu|bga\s*uu|bgaa\s*uu)\b/gi, 'байгаа юу'],
