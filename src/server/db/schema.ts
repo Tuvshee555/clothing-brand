@@ -20,6 +20,7 @@ import {
   timestamp,
   uniqueIndex,
   uuid,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
 
 export const store = pgSchema('store')
@@ -381,11 +382,16 @@ export const orders = store
       subtotal: integer().notNull(),
       total: integer().notNull(),
       itemCount: integer().notNull(),
-      /** storefront | seed | admin */
+      /** storefront | seed | admin | assistant (confirmed in the shopping assistant chat) */
       source: text().notNull().default('storefront'),
       isDemo: boolean().notNull().default(true),
       /** sha256 of the secret in the confirmation link. */
       accessTokenHash: text().notNull(),
+      /** One order per confirmed chat draft: a repeated "тийм" can never create a second order. */
+      idempotencyKey: text().unique(),
+      /** Chat orders hold their stock until this moment; unpaid after it, they are cancelled and restocked. */
+      expiresAt: timestamp({ withTimezone: true }),
+      conversationId: uuid().references((): AnyPgColumn => chatConversations.id, { onDelete: 'set null' }),
       placedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
       confirmedAt: timestamp({ withTimezone: true }),
       shippedAt: timestamp({ withTimezone: true }),
@@ -400,6 +406,7 @@ export const orders = store
       index('orders_placed_idx').on(t.placedAt),
       index('orders_visitor_idx').on(t.visitorId),
       index('orders_customer_idx').on(t.customerId),
+      index('orders_expiry_idx').on(t.status, t.expiresAt).where(sql`${t.expiresAt} is not null`),
       check('orders_amounts_non_negative', sql`${t.subtotal} >= 0 and ${t.shippingFee} >= 0`),
       check('orders_total_matches', sql`${t.total} = ${t.subtotal} + ${t.shippingFee}`),
       check('orders_item_count_positive', sql`${t.itemCount} > 0`),
@@ -574,9 +581,159 @@ export const aiUsage = store
       toolCalls: integer().notNull().default(0),
       ok: boolean().notNull().default(true),
       visitorHash: text(),
+      /** assistant (storefront chat) | test (the admin's "try the chatbot") */
+      source: text().notNull().default('assistant'),
+      conversationId: uuid(),
       createdAt: createdAt(),
     },
     (t) => [index('ai_usage_created_idx').on(t.createdAt)],
+  )
+  .enableRLS()
+
+// ---------------------------------------------------------------------------
+// Shopping assistant conversations (the chat engine's persistence)
+// ---------------------------------------------------------------------------
+
+export const chatConversations = store
+  .table(
+    'chat_conversations',
+    {
+      id: uuid().primaryKey().defaultRandom(),
+      /** website (storefront chat) | test (admin "try the chatbot") | sample (seeded examples) */
+      channel: text().notNull().default('website'),
+      /** Hashed visitor key of the browser the chat belongs to (never the raw cookie). */
+      visitorId: text(),
+      /** The admin who opened a test chat. */
+      testUserId: uuid().references(() => users.id, { onDelete: 'cascade' }),
+      /** A person took over: the assistant stays silent until staff hand the chat back. */
+      paused: boolean().notNull().default(false),
+      /** The customer is waiting for a person (a handover is open). */
+      needsHuman: boolean().notNull().default(false),
+      handoffReason: text(),
+      handoffAt: timestamp({ withTimezone: true }),
+      takenOverBy: uuid().references(() => users.id, { onDelete: 'set null' }),
+      takenOverAt: timestamp({ withTimezone: true }),
+      /** When a person last replied, and when staff last handed the chat back to the assistant. */
+      lastHumanAt: timestamp({ withTimezone: true }),
+      botReleasedAt: timestamp({ withTimezone: true }),
+      customerName: text(),
+      customerPhone: text(),
+      /** Staff-only notes. */
+      notes: text().notNull().default(''),
+      /** Engine memory: product in focus, chosen colour/size, numbered list, order draft. */
+      state: jsonb().notNull().default({}),
+      messageCount: integer().notNull().default(0),
+      unreadForStaff: integer().notNull().default(0),
+      lastMessageAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+      /** One turn at a time per conversation (lease), so two tabs cannot interleave a draft. */
+      leaseOwner: text(),
+      leaseUntil: timestamp({ withTimezone: true }),
+      isDemo: boolean().notNull().default(true),
+      createdAt: createdAt(),
+      updatedAt: updatedAt(),
+    },
+    (t) => [
+      index('chat_conversations_visitor_idx').on(t.visitorId),
+      index('chat_conversations_attention_idx').on(t.needsHuman, t.lastMessageAt),
+      index('chat_conversations_last_idx').on(t.lastMessageAt),
+      check('chat_conversations_channel', sql`${t.channel} in ('website', 'test', 'sample')`),
+    ],
+  )
+  .enableRLS()
+
+export const chatMessages = store
+  .table(
+    'chat_messages',
+    {
+      id: uuid().primaryKey().defaultRandom(),
+      conversationId: uuid()
+        .notNull()
+        .references(() => chatConversations.id, { onDelete: 'cascade' }),
+      /** customer | assistant | staff */
+      role: text().notNull(),
+      text: text().notNull(),
+      /** The browser's id for a message; a retried send returns the saved reply instead of answering twice. */
+      clientMessageId: text(),
+      /** Assistant: intent, mode, products, cards, actions, events, timing. Customer: script. */
+      metadata: jsonb().notNull().default({}),
+      staffUserId: uuid().references(() => users.id, { onDelete: 'set null' }),
+      createdAt: createdAt(),
+    },
+    (t) => [
+      uniqueIndex('chat_messages_client_uq').on(t.conversationId, t.clientMessageId),
+      index('chat_messages_conversation_idx').on(t.conversationId, t.createdAt),
+      index('chat_messages_created_idx').on(t.createdAt),
+      check('chat_messages_role', sql`${t.role} in ('customer', 'assistant', 'staff')`),
+    ],
+  )
+  .enableRLS()
+
+export const chatHandovers = store
+  .table(
+    'chat_handovers',
+    {
+      id: uuid().primaryKey().defaultRandom(),
+      conversationId: uuid()
+        .notNull()
+        .references(() => chatConversations.id, { onDelete: 'cascade' }),
+      /** customer_request | complaint | payment_claim | order_problem | bulk_order | size_advice | unanswered | ai_error */
+      reason: text().notNull(),
+      /** open (waiting) | taken (a person is answering) | resolved */
+      status: text().notNull().default('open'),
+      /** The customer message that asked for a person. */
+      question: text().notNull(),
+      /** What the chat had established: products, chosen variant, purchase intent, cart/draft. */
+      context: jsonb().notNull().default({}),
+      customerName: text(),
+      customerPhone: text(),
+      assignedUserId: uuid().references(() => users.id, { onDelete: 'set null' }),
+      resolvedAt: timestamp({ withTimezone: true }),
+      resolvedBy: uuid().references(() => users.id, { onDelete: 'set null' }),
+      createdAt: createdAt(),
+      updatedAt: updatedAt(),
+    },
+    (t) => [
+      // At most one open/taken handover per conversation.
+      uniqueIndex('chat_handovers_active_uq').on(t.conversationId).where(sql`${t.status} <> 'resolved'`),
+      index('chat_handovers_status_idx').on(t.status, t.createdAt),
+      check('chat_handovers_status', sql`${t.status} in ('open', 'taken', 'resolved')`),
+    ],
+  )
+  .enableRLS()
+
+/** The owner's own shop questions and answers; the assistant quotes them verbatim. */
+export const chatFaqs = store
+  .table(
+    'chat_faqs',
+    {
+      id: uuid().primaryKey().defaultRandom(),
+      question: text().notNull(),
+      answer: text().notNull(),
+      enabled: boolean().notNull().default(true),
+      sortOrder: integer().notNull().default(0),
+      updatedBy: uuid().references(() => users.id, { onDelete: 'set null' }),
+      createdAt: createdAt(),
+      updatedAt: updatedAt(),
+    },
+    (t) => [index('chat_faqs_enabled_idx').on(t.enabled, t.sortOrder)],
+  )
+  .enableRLS()
+
+/** Assistant problems: engine errors, AI failures, replies the fact check rejected. No customer text. */
+export const chatErrors = store
+  .table(
+    'chat_errors',
+    {
+      id: uuid().primaryKey().defaultRandom(),
+      conversationId: uuid().references(() => chatConversations.id, { onDelete: 'set null' }),
+      code: text().notNull(),
+      source: text().notNull(),
+      /** error | warning */
+      level: text().notNull().default('error'),
+      details: jsonb().notNull().default({}),
+      createdAt: createdAt(),
+    },
+    (t) => [index('chat_errors_created_idx').on(t.createdAt)],
   )
   .enableRLS()
 
@@ -642,6 +799,19 @@ export const cartsRelations = relations(carts, ({ many }) => ({ items: many(cart
 export const cartItemsRelations = relations(cartItems, ({ one }) => ({
   cart: one(carts, { fields: [cartItems.cartId], references: [carts.id] }),
   variant: one(productVariants, { fields: [cartItems.variantId], references: [productVariants.id] }),
+}))
+
+export const chatConversationsRelations = relations(chatConversations, ({ many }) => ({
+  messages: many(chatMessages),
+  handovers: many(chatHandovers),
+}))
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  conversation: one(chatConversations, { fields: [chatMessages.conversationId], references: [chatConversations.id] }),
+}))
+
+export const chatHandoversRelations = relations(chatHandovers, ({ one }) => ({
+  conversation: one(chatConversations, { fields: [chatHandovers.conversationId], references: [chatConversations.id] }),
 }))
 
 export const inventoryTransactionsRelations = relations(inventoryTransactions, ({ one }) => ({

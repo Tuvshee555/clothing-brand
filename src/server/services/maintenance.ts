@@ -1,24 +1,30 @@
 // Daily housekeeping for the public demo (Vercel Cron → /api/cron/maintenance):
-//  1. cancel visitor demo orders left open > 48 h, returning their stock
+//  0. release chat orders whose payment window passed (the assistant also does this as it runs)
+//  1. cancel visitor demo orders (storefront and chat) left open > 48 h, returning their stock
 //  2. top variants back up to their seeded baseline after visitor orders
-//  3. anonymise visitor-entered personal details after 30 days
-//  4. prune expired carts and old rate-limit windows
-// Sample orders (source "seed") and the owner's own changes are never touched.
+//  3. anonymise visitor-entered personal details after 30 days; delete visitor chats after 30 days
+//  4. prune expired carts, old rate-limit windows, old test chats and problem logs
+// Sample orders (source "seed"), sample chats and the owner's own changes are never touched.
 import { and, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm'
 import { ServiceError, type ServiceContext } from '@/server/context'
 import * as t from '@/server/db/schema'
 import { pruneRateLimits } from '@/server/security/rate-limit'
 import { PRODUCTS } from '@/server/seed/catalog-data'
 import { applyStockChange } from './inventory'
+import { releaseExpiredChatOrders } from './reservations'
 
 const OPEN = ['pending', 'confirmed', 'processing'] as const
+/** Orders visitors placed themselves (checkout or the assistant chat). */
+const VISITOR_SOURCES = ['storefront', 'assistant']
 
 export interface MaintenanceReport {
+  chatHoldsReleased: number
   cancelled: number
   unitsReturned: number
   restockedVariants: number
   anonymisedOrders: number
   deletedCarts: number
+  deletedChats: number
 }
 
 /** Seeded stock per SKU — the demo's intended shelf. */
@@ -42,14 +48,19 @@ function seededBaseline(): Map<string, number> {
 
 export async function runDemoMaintenance(ctx: ServiceContext): Promise<MaintenanceReport> {
   if (ctx.actor) throw new ServiceError('forbidden', 'Maintenance runs as the system only.')
-  const report: MaintenanceReport = { cancelled: 0, unitsReturned: 0, restockedVariants: 0, anonymisedOrders: 0, deletedCarts: 0 }
+  const report: MaintenanceReport = { chatHoldsReleased: 0, cancelled: 0, unitsReturned: 0, restockedVariants: 0, anonymisedOrders: 0, deletedCarts: 0, deletedChats: 0 }
   const stale = new Date(ctx.now.getTime() - 48 * 3_600_000)
+
+  // 0. Chat orders past their payment window.
+  const holds = await releaseExpiredChatOrders(ctx.db, { now: ctx.now, limit: 200 })
+  report.chatHoldsReleased = holds.cancelled
+  report.unitsReturned += holds.unitsReturned
 
   // 1. Abandoned visitor orders.
   const abandoned = await ctx.db
     .select({ id: t.orders.id })
     .from(t.orders)
-    .where(and(eq(t.orders.source, 'storefront'), inArray(t.orders.status, [...OPEN]), lt(t.orders.placedAt, stale)))
+    .where(and(inArray(t.orders.source, VISITOR_SOURCES), inArray(t.orders.status, [...OPEN]), lt(t.orders.placedAt, stale)))
     .limit(200)
   for (const { id } of abandoned) {
     await ctx.db.transaction(async (tx) => {
@@ -93,7 +104,7 @@ export async function runDemoMaintenance(ctx: ServiceContext): Promise<Maintenan
   const anonymised = await ctx.db
     .update(t.orders)
     .set({ customerName: 'Демо зочин', customerPhone: '00000000', customerEmail: null, address: 'Устгасан (30 хоног)', deliveryNote: null })
-    .where(and(eq(t.orders.source, 'storefront'), lt(t.orders.placedAt, retention), sql`${t.orders.customerName} <> 'Демо зочин'`))
+    .where(and(inArray(t.orders.source, VISITOR_SOURCES), lt(t.orders.placedAt, retention), sql`${t.orders.customerName} <> 'Демо зочин'`))
     .returning({ id: t.orders.id })
   report.anonymisedOrders = anonymised.length
   await ctx.db
@@ -101,7 +112,16 @@ export async function runDemoMaintenance(ctx: ServiceContext): Promise<Maintenan
     .set({ name: 'Демо зочин', phone: sql`'0000' || substr(md5(${t.customers.id}::text), 1, 4)`, email: null })
     .where(and(isNotNull(t.customers.visitorId), lt(t.customers.createdAt, retention), sql`${t.customers.name} <> 'Демо зочин'`))
 
+  // Chats visitors had with the assistant (messages and hand-overs go with them).
+  const chats = await ctx.db
+    .delete(t.chatConversations)
+    .where(and(eq(t.chatConversations.channel, 'website'), lt(t.chatConversations.lastMessageAt, retention)))
+    .returning({ id: t.chatConversations.id })
+  report.deletedChats = chats.length
+
   // 4. Housekeeping.
+  await ctx.db.delete(t.chatConversations).where(and(eq(t.chatConversations.channel, 'test'), lt(t.chatConversations.lastMessageAt, new Date(ctx.now.getTime() - 7 * 86_400_000))))
+  await ctx.db.delete(t.chatErrors).where(lt(t.chatErrors.createdAt, new Date(ctx.now.getTime() - 90 * 86_400_000)))
   const carts = await ctx.db.delete(t.carts).where(lt(t.carts.expiresAt, ctx.now)).returning({ id: t.carts.id })
   report.deletedCarts = carts.length
   await pruneRateLimits(ctx.db)

@@ -14,9 +14,9 @@ import { applyStockChange } from './inventory'
 
 type Order = typeof t.orders.$inferSelect
 
-/** Demo visitors may only act on orders their own browser placed (never on sample orders). */
+/** Demo visitors may only act on orders their own browser placed — at checkout or in the chat — never on sample orders. */
 export function demoCanTouch(actor: Actor, order: Pick<Order, 'visitorId' | 'source'>): boolean {
-  return actor.role !== 'demo' || (order.source === 'storefront' && !!actor.visitorKey && order.visitorId === actor.visitorKey)
+  return actor.role !== 'demo' || ((order.source === 'storefront' || order.source === 'assistant') && !!actor.visitorKey && order.visitorId === actor.visitorKey)
 }
 
 export async function transitionOrder(ctx: ServiceContext & { actor: Actor }, raw: unknown) {

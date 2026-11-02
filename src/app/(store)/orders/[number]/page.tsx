@@ -54,6 +54,12 @@ async function OrderBody({ params, searchParams }: Props) {
           <p className="mt-3 text-[14px] text-stone-600">
             {fmt.format(order.placedAt)} · {ORDER_STATUS_LABELS[status]} · {PAYMENT_STATUS_LABELS[paymentStatus]}
           </p>
+          {order.source === 'assistant' && awaitingQpay && order.expiresAt && (
+            <p className="mt-3 max-w-xl border-l-2 border-warning pl-3 text-[13.5px] text-charcoal">
+              Энэ захиалгыг туслахаар чатаар үүсгэсэн. Төлбөрийг <strong>{fmt.format(order.expiresAt)}</strong> хүртэл хийнэ үү — хугацаа өнгөрвөл захиалга
+              автоматаар цуцлагдаж, бараа чөлөөлөгдөнө.
+            </p>
+          )}
         </div>
         <OrderProgress status={status} />
 

@@ -10,6 +10,7 @@ import { hashPassword } from '@/server/auth/password'
 import { applyStockChange } from '@/server/services/inventory'
 import { randomToken, sha256Hex } from '@/server/security/crypto'
 import { CATEGORIES, COLLECTIONS, PRODUCTS, SAMPLE_CUSTOMERS, SAMPLE_ORDERS, type SampleOrder } from './catalog-data'
+import { seedAssistant } from './assistant'
 import { DEFAULT_POLICIES, DEFAULT_SHIPPING_METHODS, DEFAULT_SIZE_GUIDE, DEFAULT_STORE_INFO } from './content'
 
 export const DEMO_USER_EMAIL = 'demo@manan.example'
@@ -181,6 +182,9 @@ export async function seed(db: Database, opts: SeedOptions = {}): Promise<string
       const added = await seedSampleOrders(tx, now)
       log.push(`sample orders: +${added}`)
     }
+
+    // --- AI Chatbot: settings, the owner's FAQ, sample conversations -----------
+    log.push(...(await seedAssistant(tx, now)))
   })
   return log
 }
