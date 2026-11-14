@@ -85,6 +85,10 @@ const replyInput = z.object({
 export async function staffReply(ctx: Ctx, raw: unknown) {
   const input = replyInput.parse(raw)
   const c = await loadForAction(ctx, input.conversationId)
+  // Messenger and Instagram customers are answered from the Page inbox (Meta Business Suite);
+  // that reply reaches this conversation by its echo and takes the chat over.
+  if (c.channel === 'messenger' || c.channel === 'instagram')
+    throw new ServiceError('meta_inbox', 'Messenger, Instagram-ийн ярианд Meta Business Suite-ийн inbox-оос хариулна уу. Таны хариулт энд автоматаар бүртгэгдэж, туслах түр зогсоно.')
   if (!c.paused) await takeOverConversation(ctx, { conversationId: c.id })
   const inserted = await ctx.db
     .insert(t.chatMessages)

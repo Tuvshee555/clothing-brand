@@ -13,8 +13,9 @@ export function conversationScope(actor: Actor): SQL | undefined {
   )
 }
 
-/** Staff act on storefront chats; the demo only on its own; sample chats are read-only. */
+/** Staff act on storefront and Messenger/Instagram chats; the demo only on its own website chats; sample chats are read-only. */
 export function canActOn(actor: Actor, c: { channel: string; visitorId: string | null }): boolean {
+  if (c.channel === 'messenger' || c.channel === 'instagram') return actor.role !== 'demo'
   if (c.channel !== 'website') return false
   return actor.role !== 'demo' || (!!actor.visitorKey && c.visitorId === actor.visitorKey)
 }

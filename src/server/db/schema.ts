@@ -599,7 +599,7 @@ export const chatConversations = store
     'chat_conversations',
     {
       id: uuid().primaryKey().defaultRandom(),
-      /** website (storefront chat) | test (admin "try the chatbot") | sample (seeded examples) */
+      /** website (storefront chat) | test (admin "try the chatbot") | sample (seeded examples) | messenger | instagram */
       channel: text().notNull().default('website'),
       /** Hashed visitor key of the browser the chat belongs to (never the raw cookie). */
       visitorId: text(),
@@ -636,7 +636,7 @@ export const chatConversations = store
       index('chat_conversations_visitor_idx').on(t.visitorId),
       index('chat_conversations_attention_idx').on(t.needsHuman, t.lastMessageAt),
       index('chat_conversations_last_idx').on(t.lastMessageAt),
-      check('chat_conversations_channel', sql`${t.channel} in ('website', 'test', 'sample')`),
+      check('chat_conversations_channel', sql`${t.channel} in ('website', 'test', 'sample', 'messenger', 'instagram')`),
     ],
   )
   .enableRLS()
@@ -734,6 +734,48 @@ export const chatErrors = store
       createdAt: createdAt(),
     },
     (t) => [index('chat_errors_created_idx').on(t.createdAt)],
+  )
+  .enableRLS()
+
+// ---------------------------------------------------------------------------
+// Meta (Messenger, Instagram) webhook receipts
+// ---------------------------------------------------------------------------
+
+/**
+ * One row per webhook event (message, postback, echo, comment) and per message
+ * we sent (kind "sent", so its echo is recognised). Stored before Meta gets its
+ * 200, so a retried delivery is recognised and nothing is answered twice.
+ * The customer's text is removed once the event is handled; rows are purged
+ * after 30 days.
+ */
+export const metaWebhookEvents = store
+  .table(
+    'meta_webhook_events',
+    {
+      /** sha256 of the event's stable identity (platform, account, Meta message or comment id). */
+      id: text().primaryKey(),
+      /** messenger | instagram */
+      platform: text().notNull(),
+      /** message | postback | echo | comment | sent */
+      kind: text().notNull(),
+      /** The Page or Instagram account id the event arrived for. */
+      accountId: text().notNull(),
+      payload: jsonb().notNull().default({}),
+      /** pending | processing | done | skipped | expired | failed */
+      status: text().notNull().default('pending'),
+      attempts: integer().notNull().default(0),
+      leaseUntil: timestamp({ withTimezone: true }),
+      /** A short code: sent, suppressed, uncertain, staff_took_over, send_failed:http_400:10 … */
+      outcome: text(),
+      eventAt: timestamp({ withTimezone: true }).notNull(),
+      createdAt: createdAt(),
+      processedAt: timestamp({ withTimezone: true }),
+    },
+    (t) => [
+      index('meta_webhook_events_queue_idx').on(t.status, t.createdAt),
+      index('meta_webhook_events_created_idx').on(t.createdAt),
+      check('meta_webhook_events_status', sql`${t.status} in ('pending', 'processing', 'done', 'skipped', 'expired', 'failed')`),
+    ],
   )
   .enableRLS()
 

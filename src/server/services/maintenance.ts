@@ -2,12 +2,14 @@
 //  0. release chat orders whose payment window passed (the assistant also does this as it runs)
 //  1. cancel visitor demo orders (storefront and chat) left open > 48 h, returning their stock
 //  2. top variants back up to their seeded baseline after visitor orders
-//  3. anonymise visitor-entered personal details after 30 days; delete visitor chats after 30 days
+//  3. anonymise visitor-entered personal details after 30 days; delete visitor chats (website,
+//     Messenger, Instagram) and Meta webhook receipts after 30 days
 //  4. prune expired carts, old rate-limit windows, old test chats and problem logs
 // Sample orders (source "seed"), sample chats and the owner's own changes are never touched.
 import { and, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm'
 import { ServiceError, type ServiceContext } from '@/server/context'
 import * as t from '@/server/db/schema'
+import { purgeReceipts } from '@/server/meta/receipts'
 import { pruneRateLimits } from '@/server/security/rate-limit'
 import { PRODUCTS } from '@/server/seed/catalog-data'
 import { applyStockChange } from './inventory'
@@ -25,6 +27,7 @@ export interface MaintenanceReport {
   anonymisedOrders: number
   deletedCarts: number
   deletedChats: number
+  deletedMetaReceipts: number
 }
 
 /** Seeded stock per SKU — the demo's intended shelf. */
@@ -48,7 +51,7 @@ function seededBaseline(): Map<string, number> {
 
 export async function runDemoMaintenance(ctx: ServiceContext): Promise<MaintenanceReport> {
   if (ctx.actor) throw new ServiceError('forbidden', 'Maintenance runs as the system only.')
-  const report: MaintenanceReport = { chatHoldsReleased: 0, cancelled: 0, unitsReturned: 0, restockedVariants: 0, anonymisedOrders: 0, deletedCarts: 0, deletedChats: 0 }
+  const report: MaintenanceReport = { chatHoldsReleased: 0, cancelled: 0, unitsReturned: 0, restockedVariants: 0, anonymisedOrders: 0, deletedCarts: 0, deletedChats: 0, deletedMetaReceipts: 0 }
   const stale = new Date(ctx.now.getTime() - 48 * 3_600_000)
 
   // 0. Chat orders past their payment window.
@@ -115,9 +118,10 @@ export async function runDemoMaintenance(ctx: ServiceContext): Promise<Maintenan
   // Chats visitors had with the assistant (messages and hand-overs go with them).
   const chats = await ctx.db
     .delete(t.chatConversations)
-    .where(and(eq(t.chatConversations.channel, 'website'), lt(t.chatConversations.lastMessageAt, retention)))
+    .where(and(inArray(t.chatConversations.channel, ['website', 'messenger', 'instagram']), lt(t.chatConversations.lastMessageAt, retention)))
     .returning({ id: t.chatConversations.id })
   report.deletedChats = chats.length
+  report.deletedMetaReceipts = await purgeReceipts(ctx.db, 30, ctx.now)
 
   // 4. Housekeeping.
   await ctx.db.delete(t.chatConversations).where(and(eq(t.chatConversations.channel, 'test'), lt(t.chatConversations.lastMessageAt, new Date(ctx.now.getTime() - 7 * 86_400_000))))

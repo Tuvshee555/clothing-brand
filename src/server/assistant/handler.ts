@@ -39,9 +39,9 @@ export const messageInput = z.object({
   pageSlug: z.string().regex(/^[a-z0-9-]{1,80}$/).nullish(),
 })
 
-/** Who is talking: a storefront visitor (by hashed cookie) or an admin's test chat. */
+/** Who is talking: a storefront visitor (by hashed cookie), a Messenger/Instagram sender (by hashed id) or an admin's test chat. */
 export interface Speaker {
-  channel: 'website' | 'test'
+  channel: 'website' | 'test' | 'messenger' | 'instagram'
   visitorKey: string | null
   testUserId?: string | null
   ipHash: string | null
@@ -77,7 +77,7 @@ export async function logChatProblem(
 function owns(c: Conversation, speaker: Speaker): boolean {
   // The public demo is one shared user: its test chats also belong to the visitor's browser.
   if (speaker.channel === 'test') return c.channel === 'test' && !!speaker.testUserId && c.testUserId === speaker.testUserId && (c.visitorId ?? null) === (speaker.visitorKey ?? null)
-  return c.channel === 'website' && !!speaker.visitorKey && c.visitorId === speaker.visitorKey
+  return c.channel === speaker.channel && !!speaker.visitorKey && c.visitorId === speaker.visitorKey
 }
 
 export async function findOwnConversation(db: Database, conversationId: string | null | undefined, speaker: Speaker): Promise<Conversation | null> {
