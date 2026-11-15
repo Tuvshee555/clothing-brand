@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DEFAULT_COMMENT_KEYWORDS, metaConfig, missingMetaVariables } from '@/server/meta/config'
 import { commentMatches, MetaPayloadError, parseWebhook } from '@/server/meta/events'
 import { chunkText, quickReplies } from '@/server/meta/graph'
+import { toMessengerText } from '@/server/meta/text'
 import { validSignature, validVerifyToken } from '@/server/meta/signature'
 
 const PAGE = '1111111111'
@@ -175,5 +176,22 @@ describe('message sizing', () => {
     expect(chips[0].title.length).toBeLessThanOrEqual(20)
     expect(chips[0].payload).toBe('Үнэ, хэмжээний мэдээлэл авах')
     expect(quickReplies([])).toBeUndefined()
+  })
+})
+
+describe('Messenger text', () => {
+  const absolute = (href: string) => `https://shop.test${href}`
+  const listed = new Set(['https://shop.test/products/oversized-hoodie'])
+
+  it('drops a details line that only points at a product already listed under the reply', () => {
+    const text = 'Тийм, «Оверсайз hoodie» — Хар / L: 5 ширхэг байна. Үнэ 219,000₮.\nДэлгэрэнгүй: [Оверсайз hoodie](/products/oversized-hoodie)'
+    expect(toMessengerText(text, listed, absolute)).toBe('Тийм, «Оверсайз hoodie» — Хар / L: 5 ширхэг байна. Үнэ 219,000₮.')
+  })
+  it('turns other links into a label with an absolute address', () => {
+    expect(toMessengerText('Буцаалтын нөхцөл: [энд](/returns) үзнэ үү.', listed, absolute)).toBe('Буцаалтын нөхцөл: энд: https://shop.test/returns үзнэ үү.')
+  })
+  it('removes emphasis and points at the link instead of a button', () => {
+    const text = '*Оверсайз hoodie — Хар / L*\n1 ширхэг × 219,000₮ = **219,000₮**\nДоорх товчоор сагсандаа нэмээд сайтаар захиалж болно.'
+    expect(toMessengerText(text, listed, absolute)).toBe('Оверсайз hoodie — Хар / L\n1 ширхэг × 219,000₮ = 219,000₮\nДоорх холбоосоор сагсандаа нэмээд сайтаар захиалж болно.')
   })
 })

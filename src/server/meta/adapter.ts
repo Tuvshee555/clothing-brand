@@ -18,6 +18,7 @@ import * as t from '@/server/db/schema'
 import { sha256Hex } from '@/server/security/crypto'
 import type { MetaPlatform } from './events'
 import type { MetaAdapter } from './process'
+import { toMessengerText } from './text'
 
 export const metaVisitorKey = (platform: MetaPlatform, accountId: string, senderId: string) => `meta:${sha256Hex(`${platform}:${accountId}:${senderId}`)}`
 const engineMessageId = (mid: string) => `meta:${sha256Hex(mid).slice(0, 40)}`
@@ -33,9 +34,11 @@ async function conversationFor(db: Database, platform: MetaPlatform, visitorKey:
 }
 
 function withCards(text: string, cards: ChatCard[]): string {
-  if (!cards.length) return text
-  const lines = cards.slice(0, 3).map((c) => `• ${c.name} — ${formatMoney(c.price)}: ${appUrl(c.url)}`)
-  return `${text}\n\n${lines.join('\n')}`
+  const shown = cards.slice(0, 3)
+  const body = toMessengerText(text, new Set(shown.map((c) => appUrl(c.url))), appUrl)
+  if (!shown.length) return body
+  const lines = shown.map((c) => `• ${c.name} — ${formatMoney(c.price)}: ${appUrl(c.url)}`)
+  return `${body}\n\n${lines.join('\n')}`
 }
 
 export const mananMetaAdapter: MetaAdapter = {
