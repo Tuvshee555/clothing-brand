@@ -1,22 +1,28 @@
 'use client'
 
-import { ArrowUp, MessageCircle, X } from 'lucide-react'
+import { ArrowUp, MessageCircle, RotateCcw, ShoppingBag, UserRound, X } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
+import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useCartDrawer } from '@/components/store/cart-drawer'
 import { Spinner } from '@/components/ui/feedback'
+import type { ChatAction, ChatView, PublicChatMessage } from '@/lib/assistant/types'
 import { cn } from '@/lib/cn'
 import { formatMoney } from '@/lib/money'
+import { addToCartAction } from '@/server/actions/store'
 
-type Card = { name: string; slug: string; url: string; price: number; maxPrice: number; availability: string; image: string | null; imageAlt: string }
-type Message = { role: 'user' | 'assistant'; content: string; products?: Card[]; mode?: 'ai' | 'catalog'; error?: boolean }
-
-const STORAGE_KEY = 'manan.assistant'
-const STARTERS = ['Ямар hoodie байна?', 'Хар hoodie L размер байгаа юу?', '200,000₮-өөс доош юу байна?', 'Өвөлд ямар хувцас тохирох вэ?', 'Хүргэлтийн нөхцөл ямар вэ?']
+// The conversation id is not a secret: the conversation belongs to this
+// browser's httpOnly visitor cookie, which the server checks on every request.
+const STORAGE_KEY = 'manan.assistant.conversation'
+const STARTERS = ['Ямар hoodie байна?', 'Хар hoodie L размер байгаа юу?', '200,000₮-өөс доош ямар цамц байна?', 'Хүргэлт хэд хоног вэ?', 'Яаж захиалах вэ?']
+/** While a person is involved the widget checks for replies: 5 s, slowing to 30 s, for at most 10 minutes. */
+const POLL_START_MS = 5_000
+const POLL_MAX_MS = 30_000
+const POLL_FOR_MS = 10 * 60_000
 
 /** Minimal, safe rendering: **bold**, [label](/internal-link), "- " bullets, paragraphs. */
-function RichText({ text, onNavigate }: { text: string; onNavigate: () => void }) {
+export function RichText({ text, onNavigate }: { text: string; onNavigate?: () => void }) {
   const blocks = text.split(/\n{2,}/)
   const inline = (s: string, key: string): ReactNode[] => {
     const out: ReactNode[] = []
@@ -41,71 +47,210 @@ function RichText({ text, onNavigate }: { text: string; onNavigate: () => void }
   return (
     <div className="space-y-2">
       {blocks.map((block, bi) => {
-        const lines = block.split('\n')
-        const bullets = lines.filter((l) => l.startsWith('- '))
-        if (bullets.length && bullets.length === lines.length - (lines[0].startsWith('- ') ? 0 : 1)) {
-          const head = lines[0].startsWith('- ') ? null : lines[0]
-          return (
-            <Fragment key={bi}>
-              {head && <p>{inline(head, `h${bi}`)}</p>}
-              <ul className="space-y-1">
-                {bullets.map((l, li) => (
-                  <li key={li} className="flex gap-2">
-                    <span aria-hidden>·</span>
-                    <span>{inline(l.slice(2), `b${bi}-${li}`)}</span>
-                  </li>
-                ))}
-              </ul>
-            </Fragment>
-          )
+        // Consecutive "- " lines become one list; other lines stay as text, in order.
+        const groups: { bullets: boolean; lines: string[] }[] = []
+        for (const line of block.split('\n')) {
+          const bullet = line.startsWith('- ')
+          const last = groups[groups.length - 1]
+          if (last && last.bullets === bullet) last.lines.push(bullet ? line.slice(2) : line)
+          else groups.push({ bullets: bullet, lines: [bullet ? line.slice(2) : line] })
         }
-        return <p key={bi}>{lines.map((l, li) => <Fragment key={li}>{li > 0 && <br />}{inline(l, `p${bi}-${li}`)}</Fragment>)}</p>
+        return (
+          <Fragment key={bi}>
+            {groups.map((g, gi) =>
+              g.bullets ? (
+                <ul key={gi} className="space-y-1">
+                  {g.lines.map((l, li) => (
+                    <li key={li} className="flex gap-2">
+                      <span aria-hidden>·</span>
+                      <span>{inline(l, `b${bi}-${gi}-${li}`)}</span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p key={gi}>
+                  {g.lines.map((l, li) => (
+                    <Fragment key={li}>
+                      {li > 0 && <br />}
+                      {inline(l, `p${bi}-${gi}-${li}`)}
+                    </Fragment>
+                  ))}
+                </p>
+              ),
+            )}
+          </Fragment>
+        )
       })}
     </div>
   )
 }
 
-function loadHistory(): Message[] {
+type Local = PublicChatMessage & { pending?: boolean; failed?: { clientMessageId: string } }
+
+const newId = () => (typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`)
+
+function readStoredId(): string | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY)
-    const parsed = raw ? (JSON.parse(raw) as Message[]) : []
-    return Array.isArray(parsed) ? parsed.slice(-20) : []
+    return localStorage.getItem(STORAGE_KEY)
   } catch {
-    return []
+    return null
   }
+}
+function storeId(id: string | null) {
+  try {
+    if (id) localStorage.setItem(STORAGE_KEY, id)
+    else localStorage.removeItem(STORAGE_KEY)
+  } catch {
+    // Storage may be unavailable: the conversation just won't survive a reload.
+  }
+}
+
+/**
+ * The storefront chat. `variant="test"` is the admin's "try the chatbot": the
+ * same rendering, sending through a server action that never creates real
+ * orders or cart changes.
+ */
+export function ChatThread({
+  view,
+  messages,
+  pending,
+  onSend,
+  onAction,
+  onNavigate,
+}: {
+  view: ChatView | null
+  messages: Local[]
+  pending: boolean
+  onSend: (text: string, retryId?: string) => void
+  onAction: (action: ChatAction) => void
+  onNavigate?: () => void
+}) {
+  const listRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
+  }, [messages.length, pending])
+  const lastAssistant = [...messages].reverse().find((m) => m.role !== 'customer')
+  return (
+    <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4 text-[13.5px] leading-relaxed" aria-live="polite">
+      {messages.length === 0 && (
+        <>
+          <div className="max-w-[92%] bg-white px-3.5 py-3">Сайн байна уу! Бараа, өнгө, хэмжээ, үлдэгдэл, хүргэлт, буцаалтын талаар асуугаарай. Би дэлгүүрийн сангаас шалгаж хариулна.</div>
+          <div className="flex flex-wrap gap-2">
+            {STARTERS.map((s) => (
+              <button key={s} type="button" onClick={() => onSend(s)} className="border border-stone-300 bg-paper px-3 py-1.5 text-left text-[12.5px] hover:border-ink">
+                {s}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+      {messages.map((m) => (
+        <div key={m.id} className={cn('flex flex-col', m.role === 'customer' ? 'items-end' : 'items-start')}>
+          {m.role === 'staff' && (
+            <span className="mb-1 inline-flex items-center gap-1 text-[11px] font-medium uppercase tracking-[0.1em] text-accent">
+              <UserRound className="h-3 w-3" /> Ажилтан
+            </span>
+          )}
+          <div
+            className={cn(
+              'max-w-[92%] px-3.5 py-2.5',
+              m.role === 'customer' ? 'bg-ink text-white' : m.role === 'staff' ? 'border border-accent/30 bg-accent-soft' : 'bg-white',
+              m.pending && 'opacity-60',
+            )}
+          >
+            {m.role === 'customer' ? m.text : <RichText text={m.text} onNavigate={onNavigate} />}
+          </div>
+          {m.failed && (
+            <button type="button" onClick={() => onSend(m.text, m.failed!.clientMessageId)} className="mt-1 inline-flex items-center gap-1 text-[11.5px] text-danger underline">
+              <RotateCcw className="h-3 w-3" /> Илгээгдсэнгүй — дахин оролдох
+            </button>
+          )}
+          {m.cards && m.cards.length > 0 && (
+            <div className="mt-2 grid w-full grid-cols-2 gap-2">
+              {m.cards.slice(0, 4).map((p) => (
+                <Link key={p.slug} href={p.url} className="group flex gap-2 border border-stone-200 bg-white p-1.5 hover:border-ink" onClick={onNavigate}>
+                  <span className="relative aspect-[4/5] w-12 shrink-0 bg-bone">{p.image && <Image src={p.image} alt={p.imageAlt} fill sizes="48px" className="object-cover" />}</span>
+                  <span className="min-w-0 py-0.5 text-[11.5px] leading-snug">
+                    <span className="line-clamp-2 group-hover:underline">{p.name}</span>
+                    <span className="tabular mt-0.5 block text-stone-600">{p.price === p.maxPrice ? formatMoney(p.price) : `${formatMoney(p.price)}+`}</span>
+                  </span>
+                </Link>
+              ))}
+            </div>
+          )}
+          {m.actions && m.actions.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {m.actions.map((a, i) =>
+                a.type === 'link' ? (
+                  <Link key={i} href={a.href} onClick={onNavigate} className="border border-stone-300 bg-white px-3 py-1.5 text-[12px] hover:border-ink">
+                    {a.label}
+                  </Link>
+                ) : (
+                  <button
+                    key={i}
+                    type="button"
+                    disabled={pending}
+                    onClick={() => onAction(a)}
+                    className="inline-flex items-center gap-1.5 bg-ink px-3 py-1.5 text-[12px] text-white hover:bg-charcoal disabled:opacity-50"
+                  >
+                    <ShoppingBag className="h-3.5 w-3.5" /> {a.label}
+                  </button>
+                ),
+              )}
+            </div>
+          )}
+          {m.id === lastAssistant?.id && m.suggestions && m.suggestions.length > 0 && !view?.paused && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {m.suggestions.map((s) => (
+                <button key={s} type="button" disabled={pending} onClick={() => onSend(s)} className="border border-stone-300 bg-paper px-2.5 py-1 text-[12px] hover:border-ink disabled:opacity-50">
+                  {s}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      {pending && (
+        <div className="flex items-center gap-2 text-stone-600">
+          <Spinner /> {view?.paused ? 'Илгээж байна…' : 'Сангаас шалгаж байна…'}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function AssistantWidget({ storeName }: { storeName: string }) {
   const [open, setOpen] = useState(false)
-  const [messages, setMessages] = useState<Message[]>([])
+  const [view, setView] = useState<ChatView | null>(null)
+  const [messages, setMessages] = useState<Local[]>([])
   const [loaded, setLoaded] = useState(false)
   const [input, setInput] = useState('')
   const [pending, setPending] = useState(false)
+  const [notice, setNotice] = useState<string | null>(null)
   const pathname = usePathname()
-  const listRef = useRef<HTMLDivElement>(null)
+  const router = useRouter()
+  const cart = useCartDrawer()
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const pageSlug = /^\/products\/([a-z0-9-]+)/.exec(pathname)?.[1] ?? null
+  const pollSince = useRef(0)
 
+  const apply = useCallback((next: ChatView) => {
+    setView(next)
+    setMessages(next.messages)
+    storeId(next.conversationId)
+  }, [])
+
+  // Restore this browser's conversation the first time the panel opens.
   useEffect(() => {
     if (!open || loaded) return
-    // Restoring the conversation is a one-time read of browser storage when the panel first opens.
+    const id = readStoredId()
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setMessages(loadHistory())
     setLoaded(true)
-  }, [open, loaded])
-
-  useEffect(() => {
-    if (!loaded) return
-    try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-20)))
-    } catch {
-      // Storage may be unavailable; the conversation just won't survive navigation.
-    }
-  }, [messages, loaded])
-
-  useEffect(() => {
-    listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, pending])
+    if (!id) return
+    fetch(`/api/assistant?c=${encodeURIComponent(id)}`)
+      .then(async (res) => (res.ok ? apply((await res.json()) as ChatView) : storeId(null)))
+      .catch(() => undefined)
+  }, [open, loaded, apply])
 
   useEffect(() => {
     if (!open) return
@@ -115,38 +260,88 @@ export function AssistantWidget({ storeName }: { storeName: string }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [open])
 
-  const send = async (text: string) => {
-    const content = text.trim().slice(0, 600)
-    if (!content || pending) return
-    const next: Message[] = [...messages, { role: 'user', content }]
-    setMessages(next)
+  // A person is involved: check for their replies, slowing down, only while the panel is open and visible.
+  const humanActive = !!view?.humanActive
+  const conversationId = view?.conversationId
+  useEffect(() => {
+    if (!open || !humanActive || !conversationId) return
+    let delay = POLL_START_MS
+    let timer: ReturnType<typeof setTimeout>
+    let stopped = false
+    pollSince.current = Date.now()
+    const tick = async () => {
+      if (stopped) return
+      if (Date.now() - pollSince.current > POLL_FOR_MS) return
+      if (document.visibilityState === 'visible') {
+        try {
+          const res = await fetch(`/api/assistant?c=${encodeURIComponent(conversationId)}`)
+          if (res.ok && !stopped) {
+            const next = (await res.json()) as ChatView
+            setView(next)
+            setMessages((current) => (current.some((m) => m.pending || m.failed) ? current : next.messages))
+          }
+        } catch {
+          // Offline for a moment: try again later.
+        }
+      }
+      delay = Math.min(POLL_MAX_MS, Math.round(delay * 1.5))
+      timer = setTimeout(tick, delay)
+    }
+    timer = setTimeout(tick, delay)
+    return () => {
+      stopped = true
+      clearTimeout(timer)
+    }
+  }, [open, humanActive, conversationId])
+
+  const send = async (raw: string, retryId?: string) => {
+    const text = raw.trim().slice(0, 1200)
+    if (!text || pending) return
+    const clientMessageId = retryId ?? newId()
     setInput('')
+    setNotice(null)
     setPending(true)
-    const lastProducts = [...messages].reverse().find((m) => m.role === 'assistant' && m.products?.length)?.products ?? []
+    setMessages((m) => [...m.filter((x) => x.failed?.clientMessageId !== clientMessageId), { id: `local-${clientMessageId}`, role: 'customer', text, createdAt: new Date().toISOString(), pending: true }])
+    pollSince.current = Date.now()
     try {
       const res = await fetch('/api/assistant', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          messages: next.filter((m) => !m.error).slice(-10).map((m) => ({ role: m.role, content: m.content.slice(0, 1200) })),
-          pageSlug,
-          contextSlugs: lastProducts.map((p) => p.slug).slice(0, 6),
-        }),
+        body: JSON.stringify({ conversationId: view?.conversationId ?? readStoredId(), clientMessageId, text, pageSlug }),
       })
       const data = await res.json().catch(() => null)
-      if (!res.ok || !data) {
-        setMessages((m) => [...m, { role: 'assistant', content: data?.error ?? 'Туслах түр ажиллахгүй байна. Дахин оролдоно уу.', error: true }])
+      if (!res.ok || !data?.messages) {
+        setNotice(data?.error ?? 'Туслах түр ажиллахгүй байна. Дахин оролдоно уу.')
+        setMessages((m) => m.map((x) => (x.id === `local-${clientMessageId}` ? { ...x, pending: false, failed: { clientMessageId } } : x)))
       } else {
-        setMessages((m) => [...m, { role: 'assistant', content: data.reply, products: data.products, mode: data.mode }])
+        apply(data as ChatView)
+        if ((data as ChatView).cartChanged) router.refresh()
       }
     } catch {
-      setMessages((m) => [...m, { role: 'assistant', content: 'Сүлжээний алдаа гарлаа. Дахин оролдоно уу.', error: true }])
+      setNotice('Сүлжээний алдаа гарлаа. Дахин оролдоно уу.')
+      setMessages((m) => m.map((x) => (x.id === `local-${clientMessageId}` ? { ...x, pending: false, failed: { clientMessageId } } : x)))
     } finally {
       setPending(false)
     }
   }
 
-  const lastMode = [...messages].reverse().find((m) => m.mode)?.mode
+  const onAction = async (action: ChatAction) => {
+    if (action.type !== 'add_to_cart') return
+    setPending(true)
+    setNotice(null)
+    const res = await addToCartAction(action.variantId, action.quantity)
+    setPending(false)
+    if (res.ok) cart.open(res.data.cart, `${res.data.added} сагсанд нэмэгдлээ`)
+    else setNotice(res.error)
+  }
+
+  const restart = () => {
+    storeId(null)
+    setView(null)
+    setMessages([])
+    setNotice(null)
+  }
+  const closeOnMobile = () => window.innerWidth < 640 && setOpen(false)
 
   return (
     <>
@@ -158,68 +353,35 @@ export function AssistantWidget({ storeName }: { storeName: string }) {
           aria-label="Худалдааны туслах нээх"
         >
           <MessageCircle className="h-4 w-4" strokeWidth={1.6} /> Туслах
+          {humanActive && <span className="h-2 w-2 rounded-full bg-accent" aria-label="Ажилтан холбогдсон" />}
         </button>
       )}
       {open && (
-        <section
-          className="fixed inset-x-0 bottom-0 z-[55] flex h-[min(640px,88dvh)] flex-col border border-stone-200 bg-paper shadow-2xl sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[400px]"
-          aria-label="Худалдааны туслах"
-        >
+        <section className="fixed inset-x-0 bottom-0 z-[55] flex h-[min(660px,88dvh)] flex-col border border-stone-200 bg-paper shadow-2xl sm:inset-x-auto sm:bottom-6 sm:right-6 sm:w-[400px]" aria-label="Худалдааны туслах">
           <header className="flex items-start justify-between gap-3 border-b border-stone-200 px-4 py-3">
             <div>
               <p className="text-sm font-medium">{storeName} туслах</p>
-              <p className="text-[11.5px] text-stone-600">
-                {lastMode === 'ai' ? 'AI · мэдээллийг дэлгүүрийн сангаас уншина' : 'Сангаас шууд хайна · үнэ, үлдэгдэл бодит цагийн'}
-              </p>
+              <p className="text-[11.5px] text-stone-600">Үнэ, үлдэгдлийг дэлгүүрийн сангаас шууд уншина</p>
             </div>
-            <button type="button" onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center hover:bg-paper-2" aria-label="Туслах хаах">
-              <X className="h-4.5 w-4.5" strokeWidth={1.5} />
-            </button>
+            <div className="flex items-center gap-1">
+              {messages.length > 0 && (
+                <button type="button" onClick={restart} className="grid h-9 w-9 place-items-center hover:bg-paper-2" aria-label="Шинэ яриа эхлэх" title="Шинэ яриа">
+                  <RotateCcw className="h-4 w-4" strokeWidth={1.5} />
+                </button>
+              )}
+              <button type="button" onClick={() => setOpen(false)} className="grid h-9 w-9 place-items-center hover:bg-paper-2" aria-label="Туслах хаах">
+                <X className="h-4.5 w-4.5" strokeWidth={1.5} />
+              </button>
+            </div>
           </header>
+          {view && !view.enabled && <p className="border-b border-stone-200 bg-warning-soft px-4 py-2 text-[12px] text-warning">Туслах түр унтраалттай. Мессеж үлдээвэл ажилтан энд хариулна.</p>}
+          {view?.paused ? (
+            <p className="border-b border-stone-200 bg-accent-soft px-4 py-2 text-[12px] text-accent">Ажилтан холбогдсон — хариулт энд гарна.</p>
+          ) : (
+            view?.humanActive && <p className="border-b border-stone-200 bg-info-soft px-4 py-2 text-[12px] text-info">Ажилтанд мэдэгдсэн. Хүлээх хооронд надаас асууж болно.</p>
+          )}
 
-          <div ref={listRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-4 text-[13.5px] leading-relaxed" aria-live="polite">
-            <div className="max-w-[92%] bg-white px-3.5 py-3">
-              Сайн байна уу! Бараа, өнгө, хэмжээ, үлдэгдэл, хүргэлт, буцаалтын талаар асуугаарай. Би дэлгүүрийн сангаас шалгаж хариулна.
-            </div>
-            {messages.length === 0 && (
-              <div className="flex flex-wrap gap-2">
-                {STARTERS.map((s) => (
-                  <button key={s} type="button" onClick={() => send(s)} className="border border-stone-300 bg-paper px-3 py-1.5 text-left text-[12.5px] hover:border-ink">
-                    {s}
-                  </button>
-                ))}
-              </div>
-            )}
-            {messages.map((m, i) => (
-              <div key={i} className={cn('flex flex-col', m.role === 'user' ? 'items-end' : 'items-start')}>
-                <div className={cn('max-w-[92%] px-3.5 py-2.5', m.role === 'user' ? 'bg-ink text-white' : m.error ? 'bg-danger-soft text-danger' : 'bg-white')}>
-                  {m.role === 'assistant' ? <RichText text={m.content} onNavigate={() => window.innerWidth < 640 && setOpen(false)} /> : m.content}
-                </div>
-                {m.products && m.products.length > 0 && (
-                  <div className="mt-2 grid w-full grid-cols-2 gap-2">
-                    {m.products.slice(0, 4).map((p) => (
-                      <Link key={p.slug} href={p.url} className="group flex gap-2 border border-stone-200 bg-white p-1.5 hover:border-ink" onClick={() => window.innerWidth < 640 && setOpen(false)}>
-                        <span className="relative aspect-[4/5] w-12 shrink-0 bg-bone">
-                          {p.image && <Image src={p.image} alt={p.imageAlt} fill sizes="48px" className="object-cover" />}
-                        </span>
-                        <span className="min-w-0 py-0.5 text-[11.5px] leading-snug">
-                          <span className="line-clamp-2 group-hover:underline">{p.name}</span>
-                          <span className="tabular mt-0.5 block text-stone-600">
-                            {p.price === p.maxPrice ? formatMoney(p.price) : `${formatMoney(p.price)}+`}
-                          </span>
-                        </span>
-                      </Link>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-            {pending && (
-              <div className="flex items-center gap-2 text-stone-600">
-                <Spinner /> Сангаас шалгаж байна…
-              </div>
-            )}
-          </div>
+          <ChatThread view={view} messages={messages} pending={pending} onSend={send} onAction={onAction} onNavigate={closeOnMobile} />
 
           <form
             className="border-t border-stone-200 p-3"
@@ -228,6 +390,11 @@ export function AssistantWidget({ storeName }: { storeName: string }) {
               send(input)
             }}
           >
+            {notice && (
+              <p role="alert" className="mb-2 text-[12px] text-danger">
+                {notice}
+              </p>
+            )}
             <div className="flex items-end gap-2 border border-stone-300 bg-white px-3 py-2 focus-within:border-ink">
               <label htmlFor="assistant-input" className="sr-only">
                 Асуулт
@@ -237,7 +404,7 @@ export function AssistantWidget({ storeName }: { storeName: string }) {
                 id="assistant-input"
                 rows={1}
                 value={input}
-                maxLength={600}
+                maxLength={1200}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter' && !e.shiftKey) {
@@ -253,7 +420,7 @@ export function AssistantWidget({ storeName }: { storeName: string }) {
               </button>
             </div>
             <p className="mt-2 text-[10.5px] leading-snug text-stone-500">
-              Демо туслах. Захиалга үүсгэхгүй — худалдан авахдаа бүтээгдэхүүний хуудаснаас сагсанд нэмнэ. Үнэ, үлдэгдлийг хуудаснаас дахин шалгаарай.
+              Демо туслах. Чатаар захиалахад таны «тийм» баталгаажуулалтын дараа л захиалга үүснэ; төлбөр симуляц, мөнгө шилжихгүй. Хүн хэрэгтэй бол «ажилтантай холбогдох» гэж бичээрэй.
             </p>
           </form>
         </section>

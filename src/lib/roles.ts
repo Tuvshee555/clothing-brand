@@ -24,6 +24,12 @@ export const PERMISSIONS = [
   'settings.view',
   'settings.edit',
   'audit.view',
+  /** AI Chatbot section: read conversations, analytics, usage, problems; try the chatbot. */
+  'assistant.view',
+  /** Take a chat over, reply as staff, hand it back, notes. */
+  'assistant.reply',
+  /** Chatbot settings and the owner's knowledge (FAQ). */
+  'assistant.manage',
 ] as const
 export type Permission = (typeof PERMISSIONS)[number]
 
@@ -35,13 +41,17 @@ const STAFF: Permission[] = [
   'orders.view',
   'orders.update',
   'customers.view',
+  'assistant.view',
+  'assistant.reply',
 ]
-const MANAGER: Permission[] = [...STAFF, 'products.edit', 'media.upload', 'settings.view', 'audit.view']
+const MANAGER: Permission[] = [...STAFF, 'products.edit', 'media.upload', 'settings.view', 'audit.view', 'assistant.manage']
 
 /**
  * The public demo can look at everything that holds no secrets, and may move
  * only its *own* demo orders through their statuses (enforced in the order
- * service). It cannot edit the catalogue, stock or settings.
+ * service) and take over / answer only its *own* chats (enforced in the
+ * assistant admin service). It cannot edit the catalogue, stock, settings or
+ * the chatbot's knowledge and settings.
  */
 const DEMO: Permission[] = [
   'dashboard.view',
@@ -51,6 +61,8 @@ const DEMO: Permission[] = [
   'orders.update',
   'customers.view',
   'settings.view',
+  'assistant.view',
+  'assistant.reply',
 ]
 
 const MATRIX: Record<Role, ReadonlySet<Permission>> = {

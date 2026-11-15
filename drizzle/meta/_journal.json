@@ -8,6 +8,20 @@
       "when": 1793505854066,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793554070979,
+      "tag": "0001_assistant_conversations",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794624592549,
+      "tag": "0002_meta_webhooks",
+      "breakpoints": true
     }
   ]
 }

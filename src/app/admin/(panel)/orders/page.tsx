@@ -73,7 +73,8 @@ export default async function OrdersPage({ searchParams }: { searchParams: Promi
                     {o.number}
                   </Link>
                   {o.source === 'seed' && <span className="ml-2"><SampleTag /></span>}
-                  {actor.role === 'demo' && o.source === 'storefront' && <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] text-accent">Таны</span>}
+                  {o.source === 'assistant' && <span className="ml-2 rounded-full bg-info-soft px-2 py-0.5 text-[11px] text-info">Чатаар</span>}
+                  {actor.role === 'demo' && (o.source === 'storefront' || o.source === 'assistant') && <span className="ml-2 rounded-full bg-accent-soft px-2 py-0.5 text-[11px] text-accent">Таны</span>}
                 </Td>
                 <Td className="text-stone-600">{dateTime.format(o.placedAt)}</Td>
                 <Td>

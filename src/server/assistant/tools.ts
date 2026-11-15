@@ -14,11 +14,13 @@ import {
   type CatalogProduct,
   type ColorFamily,
 } from '@/lib/catalog-filter'
-import type { Policies, PolicyKey, StoreInfo } from '@/lib/settings'
+import { parseAssistantSettings, type AssistantSettings } from '@/lib/assistant/settings'
+import type { Policies, PolicyKey, SizeGuide, StoreInfo } from '@/lib/settings'
 import type { Database } from '@/server/db/client'
 import * as t from '@/server/db/schema'
 import { loadCatalog } from '@/server/queries/catalog'
 import { loadPolicies, loadShippingMethods, loadStoreInfo } from '@/server/queries/settings'
+import { DEFAULT_SIZE_GUIDE } from '@/server/seed/content'
 
 export interface ToolContext {
   db: Database
@@ -27,17 +29,52 @@ export interface ToolContext {
   info: StoreInfo
   shipping: { code: string; name: string; description: string; fee: number; freeThreshold: number | null; eta: string; region: string }[]
   categories: { slug: string; name: string }[]
+  /** Long description and care text per product id (not part of the listing catalogue). */
+  details: Map<string, { description: string; care: string }>
+  sizeGuide: SizeGuide
+  /** The owner's own questions and answers, quoted verbatim. */
+  faqs: { id: string; question: string; answer: string }[]
+  settings: AssistantSettings
 }
 
+async function readSettingValue(db: Database, key: string): Promise<unknown> {
+  const [row] = await db.select({ value: t.settings.value }).from(t.settings).where(eq(t.settings.key, key)).limit(1)
+  return row?.value
+}
+
+export async function loadAssistantSettings(db: Database): Promise<AssistantSettings> {
+  return parseAssistantSettings(await readSettingValue(db, 'assistant'))
+}
+
+/** Everything the assistant may state, read fresh from the database for every turn (no cache). */
 export async function buildToolContext(db: Database): Promise<ToolContext> {
-  const [catalog, policies, info, shipping, categories] = await Promise.all([
+  const [catalog, policies, info, shipping, categories, details, sizeGuide, faqs, settings] = await Promise.all([
     loadCatalog(db),
     loadPolicies(db),
     loadStoreInfo(db),
     loadShippingMethods(db),
     db.select({ slug: t.categories.slug, name: t.categories.name }).from(t.categories).where(eq(t.categories.isActive, true)).orderBy(asc(t.categories.sortOrder)),
+    db.select({ id: t.products.id, description: t.products.description, care: t.products.care }).from(t.products).where(eq(t.products.status, 'active')),
+    readSettingValue(db, 'size_guide'),
+    db
+      .select({ id: t.chatFaqs.id, question: t.chatFaqs.question, answer: t.chatFaqs.answer })
+      .from(t.chatFaqs)
+      .where(eq(t.chatFaqs.enabled, true))
+      .orderBy(asc(t.chatFaqs.sortOrder), asc(t.chatFaqs.createdAt)),
+    loadAssistantSettings(db),
   ])
-  return { db, catalog, policies, info, shipping, categories }
+  return {
+    db,
+    catalog,
+    policies,
+    info,
+    shipping,
+    categories,
+    details: new Map(details.map((d) => [d.id, { description: d.description, care: d.care }])),
+    sizeGuide: (sizeGuide as SizeGuide | undefined) ?? DEFAULT_SIZE_GUIDE,
+    faqs,
+    settings,
+  }
 }
 
 /** Compact, factual product summary handed to the model and used for chat cards. */

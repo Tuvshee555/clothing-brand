@@ -22,6 +22,11 @@ https://manan-store.vercel.app
 
 ## Database changes
 
+A production deploy applies pending migrations and the idempotent seed itself
+(`scripts/migrate-on-deploy.ts`, run by `npm run build` only when `VERCEL_ENV=production`).
+If a migration fails, the build fails and the previous deployment keeps serving. Review
+anything destructive first; by hand:
+
 ```bash
 npm run db:generate        # after editing src/server/db/schema.ts
 npm run db:migrate         # applies to DATABASE_URL (create a Neon branch first if destructive)

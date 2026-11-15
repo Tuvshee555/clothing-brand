@@ -24,6 +24,15 @@ export type AuditAction =
   | 'user.password_changed'
   | 'user.login'
   | 'demo.entered'
+  | 'assistant.settings_updated'
+  | 'assistant.faq_saved'
+  | 'assistant.faq_deleted'
+  | 'conversation.taken_over'
+  | 'conversation.released'
+  | 'conversation.staff_reply'
+  | 'conversation.notes_updated'
+  | 'conversation.auto_released'
+  | 'order.created_by_assistant'
 
 export async function audit(
   db: Database,

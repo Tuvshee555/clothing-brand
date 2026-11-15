@@ -41,7 +41,20 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
             {order.number} <OrderStatusBadge status={status} /> <PaymentBadge status={paymentStatus} /> {order.source === 'seed' && <SampleTag />}
           </span>
         }
-        description={`${dateTime.format(order.placedAt)} · ${order.source === 'seed' ? 'Жишээ захиалга' : 'Вэб дэлгүүр'}`}
+        description={
+          <>
+            {dateTime.format(order.placedAt)} · {order.source === 'seed' ? 'Жишээ захиалга' : order.source === 'assistant' ? 'Худалдааны туслахаар (чатаар) баталгаажуулсан' : 'Вэб дэлгүүр'}
+            {order.conversationId && (
+              <>
+                {' · '}
+                <Link href={`/admin/assistant/conversations/${order.conversationId}`} className="underline underline-offset-2">
+                  Яриаг харах
+                </Link>
+              </>
+            )}
+            {order.expiresAt && order.status === 'pending' && order.paymentStatus === 'unpaid' && <> · Төлөх хугацаа: {dateTime.format(order.expiresAt)} хүртэл</>}
+          </>
+        }
       />
       <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
         <div className="space-y-4">

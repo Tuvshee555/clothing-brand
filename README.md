@@ -24,7 +24,9 @@ Everything customer-facing is in Mongolian; prices are integer tögrög (`219,00
 | Checkout, order creation, stock reservation | **Real** — one transaction with row locks; cannot oversell |
 | Order statuses, cancellation returning stock, inventory ledger | **Real** |
 | Admin: products, variants, stock adjustments, orders, customers, settings | **Real** (owner account); the public demo is restricted |
-| Shopping assistant | **Real** — catalogue mode (deterministic, database-only) on the live demo; AI mode (OpenAI tool calling + fact check) when a key is configured |
+| Shopping assistant | **Real** — Lorentz's engine adapted to clothing: exact colour × size answers, Latin-script Mongolian, context, chat orders after an explicit «тийм», hand-over to staff. Catalogue mode (deterministic, database-only) without a key; AI mode (OpenAI tool calling + fact check) when one is configured |
+| AI Chatbot admin | **Real** — conversations, hand-over queue, inquiries, knowledge (owner FAQ), settings, analytics, AI usage and costs, activity, problems, test chat |
+| Chat orders | **Real** orders through the checkout's own core (stock reserved, 60-minute hold); payment is the QPay **simulation** |
 | QPay | **Simulated** — clearly labelled; the QPay adapter is built but the demo never takes money |
 | Delivery, e-mail, SMS | **Not performed** — demo only |
 | Newsletter | Stores the address; no e-mails are sent |
@@ -57,14 +59,16 @@ Local development and tests use only the local database from `npm run db:dev` (`
 | `npm run test:e2e` | Playwright shopping-to-admin journey (`E2E_BASE_URL=https://… npm run test:e2e` for a deployed site) |
 | `npm run db:migrate` · `db:seed` · `db:generate` | migrations (additive), seed (adds only what is missing), new migration from `schema.ts` |
 | `npm run images:build` | download, crop and encode catalogue photos from `scripts/images/manifest.json` |
-| `npm run assistant:smoke` | ask the assistant the reference questions and check every amount against the database |
+| `npm run assistant:smoke` | ask the assistant the reference questions (as an admin test chat) and check every amount against the database |
+| `ASSISTANT_EVAL_REPORT=1 ASSISTANT_EVAL_HELDOUT=1 npx vitest run tests/integration/assistant-eval.test.ts` | Mongolian evaluation (102 + 30 held-out conversations) → `docs/assistant/EVAL*.md` |
 | `npm run check` | lint + typecheck + tests + build |
 
 ## Accounts
 
 - **Public demo** — `/admin/login` → «Демо горимоор нэвтрэх». A 4-hour session on the `demo`
   role: sees sample data plus orders placed from the same browser, may move *its own* orders
-  through their statuses; cannot edit products, stock or settings; never sees other visitors.
+  through their statuses; in AI чатбот, sees sample chats and its own, may take over and answer
+  only its own; cannot edit products, stock, settings or the chatbot; never sees other visitors.
 - **Owner** — e-mail and password set once through `ADMIN_EMAIL` / `ADMIN_PASSWORD` when
   seeding. Never published. Change it under Admin → Тохиргоо.
 
@@ -73,7 +77,7 @@ Local development and tests use only the local database from `npm run db:dev` (`
 - [docs/BRAND.md](docs/BRAND.md) — name directions, identity, voice
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — layers, caching, data flow, demo scope
 - [docs/DATABASE.md](docs/DATABASE.md) — schema, invariants, inventory ledger, seed
-- [docs/ASSISTANT.md](docs/ASSISTANT.md) — how the assistant stays truthful; enabling AI mode
+- [docs/ASSISTANT.md](docs/ASSISTANT.md) — the assistant: what came from Lorentz, clothing layer, chat orders, hand-over, AI mode, evaluation
 - [docs/SECURITY.md](docs/SECURITY.md) — controls and what they protect
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — Vercel, environment variables, cron, QPay activation
 - [docs/IMAGE_CREDITS.md](docs/IMAGE_CREDITS.md) — every photo, photographer and licence

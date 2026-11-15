@@ -19,6 +19,8 @@ export const LIMITS = {
   newsletter: { name: 'newsletter', limit: 5, windowSeconds: 60 * 60 },
   assistantBurst: { name: 'assistant-burst', limit: 12, windowSeconds: 5 * 60 },
   assistantDaily: { name: 'assistant-daily', limit: 60, windowSeconds: 24 * 60 * 60 },
+  /** The widget checks for staff replies only while a person is involved, with back-off. */
+  assistantPoll: { name: 'assistant-poll', limit: 240, windowSeconds: 60 * 60 },
   adminWrite: { name: 'admin-write', limit: 240, windowSeconds: 60 * 60 },
   upload: { name: 'upload', limit: 40, windowSeconds: 60 * 60 },
 } satisfies Record<string, RateLimitRule>

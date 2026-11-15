@@ -67,7 +67,7 @@ test('assistant answers stock questions from the database', async ({ page }) => 
   await page.getByRole('button', { name: 'Худалдааны туслах нээх' }).click()
   await page.getByLabel('Асуулт').fill('Хар hoodie L размер байгаа юу?')
   await page.getByRole('button', { name: 'Илгээх' }).click()
-  await expect(page.getByLabel('Худалдааны туслах').getByText(/Хар, L: .*ширхэг|дууссан/)).toBeVisible({ timeout: 30_000 })
+  await expect(page.getByLabel('Худалдааны туслах').getByText(/Хар \/ L.*(?:ширхэг|дууссан)/)).toBeVisible({ timeout: 30_000 })
 })
 
 test('admin is closed to anonymous visitors and read-only for the public demo', async ({ page }) => {
