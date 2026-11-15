@@ -208,8 +208,9 @@ function offer(input: PurchaseInput, p: CatalogProduct, d: OrderDraft, events: s
   const subtotal = v.price * d.quantity
   const standard = input.tc.shipping.find((m) => m.region === 'ub' && m.freeThreshold !== null) ?? input.tc.shipping[0]
   const fee = standard ? shippingFeeFor(subtotal, standard) : 0
+  // "Хар M байгаа юу?" while buying: say it is there, with the count, before the offer.
   const lines = [
-    `**${variantLabel(p, d)}**`,
+    input.u.topics.includes('stock') ? `Тийм, ${variantLabel(p, d)}: ${v.stock} ширхэг байна.` : `**${variantLabel(p, d)}**`,
     `${d.quantity} ширхэг × ${money(v.price)} = **${money(subtotal)}**`,
     standard ? `Хүргэлт: ${standard.name} ${fee === 0 ? 'үнэгүй' : money(fee)}${standard.freeThreshold && fee > 0 ? ` (${money(standard.freeThreshold)}-өөс дээш бол үнэгүй)` : ''}.` : '',
     'Доорх товчоор сагсандаа нэмээд сайтаар захиалж болно.',
@@ -475,9 +476,19 @@ async function continueDraft(input: PurchaseInput, d: OrderDraft): Promise<Purch
   if (!p) return null
   const q = variantQuery(p, u, input.focus)
   const mentionsVariant = q.colors.length > 0 || q.sizes.length > 0 || q.unknownColors.length > 0 || q.unknownSizes.length > 0
+  // "Өөр ямар hoodie байгаа вэ?" asks about other products: the search answers it and the
+  // draft stays as it is for «энд захиалъя» later.
+  const browsing =
+    !u.buy &&
+    !u.chatHere &&
+    !u.addToCart &&
+    (u.browse ||
+      u.catalogQuestion ||
+      (/(?:^|\s)(?:өөр|бусад)\s/u.test(u.norm) && u.garments.length > 0 && !u.topics.includes('other_color') && !u.topics.includes('other_size')))
 
   if (d.step === 'variant') {
     if (u.no) return cancel(input, [p.id])
+    if (browsing) return null
     if (!mentionsVariant && !u.numbered && !u.quantity) return null
     const picked = pickVariant(input, p, d)
     const next: OrderDraft = { ...d, colorId: picked.colorId, size: picked.size, quantity: u.quantity ?? d.quantity, updatedAt: input.now }
@@ -491,6 +502,7 @@ async function continueDraft(input: PurchaseInput, d: OrderDraft): Promise<Purch
     if (u.no) return cancel(input, [p.id])
     if (u.addToCart) return addToCartNow(input, p, d)
     if (u.chatHere) return contactPrompt(input, p, d)
+    if (browsing) return null
     if (mentionsVariant || u.quantity) {
       const picked = pickVariant(input, p, d)
       return offer(input, p, { ...d, colorId: picked.colorId, size: picked.size, quantity: u.quantity ?? d.quantity, updatedAt: input.now }, [])

@@ -145,4 +145,7 @@ export const CASES: EvalCase[] = [
   one('or-cart', 'ordering', 'Оверсайз hoodie хар L сагсанд нэм', { contains: ['Сагсанд нэмлээ'], event: 'added_to_cart' }),
   one('or-status-needs-phone', 'ordering', 'MN-09001 захиалга хаана явна', { contains: ['утасны дугаараа'] }),
   one('or-pickup-not-buy', 'ordering', 'Очиж авч болох уу?', { notIntent: 'purchase' }),
+  { id: 'or-offer-stock', category: 'ordering', turns: [{ text: 'Хар hoodie L авъя' }, { text: 'Хар M байгаа юу?' }], expect: { contains: ['Тийм, Оверсайз hoodie — Хар / M: 4 ширхэг байна.'], event: 'offer' } },
+  { id: 'or-other-products', category: 'ordering', turns: [{ text: 'Хар hoodie L авъя' }, { text: 'Өөр ямар hoodie байгаа вэ?' }], expect: { notIntent: 'purchase', not: ['ширхэг × '] } },
+  one('or-offer-delivery-time', 'ordering', 'Хар hoodie L авъя, хэд хоногт ирэх вэ?', { contains: ['Оверсайз hoodie — Хар / L'], any: ['хоног', 'ажлын өдөр'], event: 'offer' }),
 ]

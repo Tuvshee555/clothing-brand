@@ -237,7 +237,9 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
     addToCart: input.addToCart,
   })
   if (bought) {
-    return done({ ...bought, handoff: bought.handoff ?? null, draft: bought.draft, candidates: bought.candidates })
+    // "Авъя, хэд хоногт ирэх вэ?": the offer and the policy answer together.
+    const policy = u.policy && u.policy !== 'size_guide' && bought.events.includes('offer') ? policyAnswer(tc, u.policy).text : ''
+    return done({ ...bought, text: policy ? `${bought.text}\n\n${policy}` : bought.text, handoff: bought.handoff ?? null, draft: bought.draft, candidates: bought.candidates })
   }
 
   // ── 2. Orders ──
