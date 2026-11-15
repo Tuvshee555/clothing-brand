@@ -34,6 +34,10 @@ function DemoQr() {
   )
 }
 
+// The banks a QPay invoice lists for paying on a phone. In the demo, choosing
+// one simulates that bank's app confirming the payment.
+const DEMO_BANKS = ['Хаан банк', 'Голомт банк', 'Худалдаа хөгжлийн банк', 'Төрийн банк', 'Хас банк', 'MonPay'] as const
+
 export function PaymentPanel({
   number,
   token,
@@ -41,6 +45,7 @@ export function PaymentPanel({
   mode,
   hasInvoice,
   qrImage,
+  qrSvg = null,
 }: {
   number: string
   token: string | null
@@ -48,6 +53,8 @@ export function PaymentPanel({
   mode: 'mock' | 'sandbox' | 'production'
   hasInvoice: boolean
   qrImage: string | null
+  /** Demo only: a real, scannable QR (it opens the agency's demo page, never a payment). */
+  qrSvg?: string | null
 }) {
   const [pending, start] = useTransition()
   const [message, setMessage] = useState<{ tone: 'danger' | 'info'; text: string } | null>(null)
@@ -77,26 +84,40 @@ export function PaymentPanel({
     <div className="space-y-5">
       {mode === 'mock' ? (
         <>
-          <DemoQr />
-          <p className="text-center text-[13px] text-stone-600">
-            Бодит дэлгүүрт энд QPay QR код гарч, худалдан авагч банкны аппаар уншуулна. Энэ демод QPay-тэй холбогдохгүй — доорх товч төлбөрийг
-            дуурайлгана.
-          </p>
-          <Button
-            className="w-full"
-            size="lg"
-            disabled={pending}
-            onClick={() =>
-              start(async () => {
-                setMessage(null)
-                const res = await simulatePaymentAction(number, token)
-                if (!res.ok) setMessage({ tone: 'danger', text: res.error })
-              })
-            }
-          >
-            {pending ? 'Төлж байна…' : `Туршилтын төлбөр хийх · ${formatMoney(total)}`}
-          </Button>
-          <p className="text-center text-[11.5px] text-stone-500">Мөнгө шилжихгүй. Захиалга «туршилтын төлбөр» гэж тэмдэглэгдэнэ.</p>
+          <div className="mx-auto w-48 space-y-2 text-center">
+            {qrSvg ? (
+              <div
+                role="img"
+                aria-label="QPay QR код"
+                className="border border-stone-200 bg-white p-2 [&>svg]:block [&>svg]:h-auto [&>svg]:w-full"
+                dangerouslySetInnerHTML={{ __html: qrSvg }}
+              />
+            ) : (
+              <DemoQr />
+            )}
+            <p className="tabular text-[15px] font-medium">{formatMoney(total)}</p>
+          </div>
+          <p className="text-center text-[13px] text-stone-600">Банкны аппаараа QR кодыг уншуулах эсвэл доороос банкаа сонгоно уу.</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {DEMO_BANKS.map((bank) => (
+              <button
+                key={bank}
+                type="button"
+                disabled={pending}
+                className="min-h-11 border border-stone-300 bg-white px-2 py-2 text-[12.5px] font-medium leading-tight transition hover:border-ink disabled:opacity-50"
+                onClick={() =>
+                  start(async () => {
+                    setMessage(null)
+                    const res = await simulatePaymentAction(number, token)
+                    if (!res.ok) setMessage({ tone: 'danger', text: res.error })
+                  })
+                }
+              >
+                {pending ? 'Төлж байна…' : bank}
+              </button>
+            ))}
+          </div>
+          <p className="text-center text-[11.5px] text-stone-500">Демо: банкаа сонгоход төлбөр баталгаажсан мэт харагдана, мөнгө шилжихгүй.</p>
         </>
       ) : (
         <>

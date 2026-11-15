@@ -35,7 +35,9 @@ export const checkoutInput = z.object({
     .max(300, { error: 'Хаяг хэт урт байна.' }),
   deliveryNote: optionalText(300),
   paymentMethod: z.enum(['qpay', 'cash_on_delivery'], { error: 'Төлбөрийн хэлбэрээ сонгоно уу.' }),
-  acceptDemo: z.literal(true, { error: 'Энэ нь демо захиалга гэдгийг зөвшөөрнө үү.' }),
+  // Kept for older clients. The store's announcement bar now labels the whole
+  // site as a demo, so checkout no longer asks for a separate acknowledgement.
+  acceptDemo: z.boolean().optional(),
   /** The total the visitor saw. If prices or stock changed meanwhile the server refuses and shows the new total. */
   expectedTotal: z.number().int().nonnegative().optional(),
 })

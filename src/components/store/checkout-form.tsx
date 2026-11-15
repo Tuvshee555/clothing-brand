@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useState, useTransition } from 'react'
 import { Button } from '@/components/ui/button'
 import { Alert } from '@/components/ui/feedback'
-import { Checkbox, Field, Input, Select, Textarea } from '@/components/ui/form'
+import { Field, Input, Select, Textarea } from '@/components/ui/form'
 import { cn } from '@/lib/cn'
 import { formatMoney, shippingFeeFor } from '@/lib/money'
 import { areasFor, type Region } from '@/lib/regions'
@@ -20,7 +20,7 @@ const SAMPLE = {
   email: '',
   district: 'Хан-Уул',
   address: '15-р хороо, Жишээ хотхон, 3-р байр, 2-р орц, 45 тоот',
-  deliveryNote: 'Демо захиалга — хүргэлт хийгдэхгүй',
+  deliveryNote: 'Орцны код: 1234',
 }
 
 export function CheckoutForm({ lines, subtotal, shipping }: { lines: CartLine[]; subtotal: number; shipping: Shipping[] }) {
@@ -31,7 +31,6 @@ export function CheckoutForm({ lines, subtotal, shipping }: { lines: CartLine[];
   const [form, setForm] = useState({ name: '', phone: '', email: '', district: '', address: '', deliveryNote: '' })
   const [method, setMethod] = useState(shipping[0]?.code ?? '')
   const [payment, setPayment] = useState<'qpay' | 'cash_on_delivery'>('qpay')
-  const [acceptDemo, setAcceptDemo] = useState(false)
 
   const selected = shipping.find((s) => s.code === method)
   const fee = selected ? shippingFeeFor(subtotal, selected) : 0
@@ -45,7 +44,7 @@ export function CheckoutForm({ lines, subtotal, shipping }: { lines: CartLine[];
     start(async () => {
       setError(null)
       setFieldErrors({})
-      const res = await placeOrderAction({ ...form, shippingMethod: method, paymentMethod: payment, acceptDemo, expectedTotal: total })
+      const res = await placeOrderAction({ ...form, shippingMethod: method, paymentMethod: payment, expectedTotal: total })
       if (res.ok) {
         router.push(`/orders/${res.data.number}?t=${encodeURIComponent(res.data.token)}`)
         return
@@ -66,20 +65,20 @@ export function CheckoutForm({ lines, subtotal, shipping }: { lines: CartLine[];
       className="grid gap-10 lg:grid-cols-[1fr_400px]"
     >
       <div className="space-y-10">
-        <Alert tone="info" title="Энэ бол демо захиалга">
-          Бодит худалдан авалт, төлбөр хийгдэхгүй, ямар ч карт, данснаас мөнгө авахгүй. Бодит хувийн мэдээлэл оруулах шаардлагагүй.{' '}
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 border border-stone-200 bg-white px-4 py-3 text-[13px] text-stone-600">
+          Туршиж үзэж байна уу?
           <button
             type="button"
-            className="font-medium underline underline-offset-2"
+            className="font-medium text-ink underline underline-offset-2"
             onClick={() => {
               setForm(SAMPLE)
               const ub = shipping.find((s) => s.region === 'ub')
               if (ub) setMethod(ub.code)
             }}
           >
-            Жишээ мэдээлэл бөглөх
+            Жишээ мэдээллээр бөглөх
           </button>
-        </Alert>
+        </p>
 
         <fieldset className="space-y-5">
           <legend className="display mb-5 text-2xl">1. Холбоо барих</legend>
@@ -151,8 +150,8 @@ export function CheckoutForm({ lines, subtotal, shipping }: { lines: CartLine[];
           <legend className="display mb-5 text-2xl">3. Төлбөр</legend>
           {(
             [
-              { value: 'qpay', title: 'QPay', text: 'Туршилтын (симуляц) горим: нэхэмжлэх дуурайлгаж харуулна, бодит мөнгө шилжихгүй.' },
-              { value: 'cash_on_delivery', title: 'Хүргэлтээр төлөх', text: 'Бараагаа хүлээн авахдаа бэлнээр эсвэл картаар төлнө. (Демо: хүргэлт хийгдэхгүй.)' },
+              { value: 'qpay', title: 'QPay', text: 'Банкны аппаар QR уншуулж эсвэл банкаа сонгоод шууд төлнө.' },
+              { value: 'cash_on_delivery', title: 'Хүргэлтээр төлөх', text: 'Бараагаа хүлээн авахдаа бэлнээр эсвэл картаар төлнө.' },
             ] as const
           ).map((opt) => (
             <label key={opt.value} className={cn('flex cursor-pointer items-start gap-3 border p-4 transition', payment === opt.value ? 'border-ink bg-white' : 'border-stone-300 hover:border-stone-500')}>
@@ -165,14 +164,6 @@ export function CheckoutForm({ lines, subtotal, shipping }: { lines: CartLine[];
           ))}
         </fieldset>
 
-        <div className="space-y-2">
-          <Checkbox
-            checked={acceptDemo}
-            onChange={(e) => setAcceptDemo(e.target.checked)}
-            label="Энэ нь портфолио демо бөгөөд бодит худалдан авалт, төлбөр, хүргэлт хийгдэхгүй гэдгийг ойлголоо."
-          />
-          {err('acceptDemo') && <p className="text-[12.5px] font-medium text-danger">{err('acceptDemo')}</p>}
-        </div>
       </div>
 
       <aside className="h-fit border border-stone-200 bg-white p-6 lg:sticky lg:top-24">

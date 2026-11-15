@@ -18,7 +18,16 @@ export async function AnnouncementBar() {
     <div className="bg-ink text-white">
       <div className="container-page flex h-9 items-center justify-center gap-6 text-[11.5px] tracking-[0.04em] sm:justify-between">
         <span className="hidden text-white/60 sm:inline">Портфолио демо — зохиомол брэнд</span>
-        <p className="truncate text-center">{info.announcementEnabled ? info.announcement : 'Демо дэлгүүр — бодит худалдаа, төлбөр хийгдэхгүй'}</p>
+        <p className="truncate text-center">
+          {info.announcementEnabled ? (
+            <>
+              <span className="sm:hidden">Демо дэлгүүр · </span>
+              {info.announcement}
+            </>
+          ) : (
+            'Демо дэлгүүр — бодит худалдаа, төлбөр хийгдэхгүй'
+          )}
+        </p>
         <a href={BRAND.portfolioUrl} className="hidden items-center gap-1 text-white/70 transition hover:text-white sm:inline-flex">
           {BRAND.agencyName} <ArrowUpRight className="h-3.5 w-3.5" />
         </a>

@@ -115,10 +115,9 @@ describe('checkout', () => {
     expect(err.fieldErrors).toHaveProperty('district')
   })
 
-  it('requires the demo acknowledgement, valid phone and a non-empty cart', async () => {
+  it('requires a valid phone and a non-empty cart', async () => {
     const v = visitor()
     await expect(placeOrder(ctx(db), v, checkoutDetails)).rejects.toMatchObject({ code: 'empty_cart' })
-    await expect(placeOrder(ctx(db), v, { ...checkoutDetails, acceptDemo: false })).rejects.toBeInstanceOf(ZodError)
     await expect(placeOrder(ctx(db), v, { ...checkoutDetails, phone: '123' })).rejects.toBeInstanceOf(ZodError)
   })
 

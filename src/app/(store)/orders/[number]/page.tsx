@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import QRCode from 'qrcode'
 import { Suspense } from 'react'
 import { OrderProgress } from '@/components/order-progress'
 import { DemoAdminButton } from '@/components/store/demo-admin-link'
@@ -23,6 +24,8 @@ type Props = { params: Promise<{ number: string }>; searchParams: Promise<Record
 
 const fmt = new Intl.DateTimeFormat('mn-MN', { timeZone: 'Asia/Ulaanbaatar', dateStyle: 'medium', timeStyle: 'short' })
 
+const DEMO_QR_TARGET = 'https://www.ursgaldigital.com/demo'
+
 async function OrderBody({ params, searchParams }: Props) {
   const [{ number }, sp, visitorKey] = await Promise.all([params, searchParams, readVisitorKey()])
   const token = typeof sp.t === 'string' ? sp.t : null
@@ -42,6 +45,13 @@ async function OrderBody({ params, searchParams }: Props) {
   const status = order.status as OrderStatus
   const paymentStatus = order.paymentStatus as PaymentStatus
   const awaitingQpay = order.paymentMethod === 'qpay' && paymentStatus === 'unpaid' && status !== 'cancelled'
+  const paymentMode = (payment?.mode as 'mock' | 'sandbox' | 'production' | undefined) ?? 'mock'
+  // In the demo the QR is real and scannable, but it only opens the agency's
+  // demo page — it never carries a payment a banking app could act on.
+  const demoQrSvg =
+    awaitingQpay && paymentMode === 'mock'
+      ? await QRCode.toString(DEMO_QR_TARGET, { type: 'svg', margin: 0, errorCorrectionLevel: 'M', color: { dark: '#111111', light: '#ffffff' } })
+      : null
 
   return (
     <div className="grid gap-10 lg:grid-cols-[1fr_400px]">
@@ -139,14 +149,15 @@ async function OrderBody({ params, searchParams }: Props) {
               number={order.number}
               token={token}
               total={order.total}
-              mode={(payment?.mode as 'mock' | 'sandbox' | 'production') ?? 'mock'}
+              mode={paymentMode}
               hasInvoice={payment?.status === 'pending'}
               qrImage={null}
+              qrSvg={demoQrSvg}
             />
           ) : order.paymentMethod === 'cash_on_delivery' ? (
             <p className="text-[13px] text-stone-600">Барааг хүлээн авахдаа бэлнээр эсвэл картаар төлнө. Демо: бодит хүргэлт, төлбөр байхгүй.</p>
           ) : paymentStatus === 'simulated' ? (
-            <p className="text-[13px] text-stone-600">Туршилтын QPay төлбөр бүртгэгдсэн. Бодит мөнгө шилжээгүй.</p>
+            <p className="text-[13px] text-stone-600">QPay төлбөр баталгаажлаа. Демо: бодит мөнгө шилжээгүй.</p>
           ) : null}
         </div>
         <div className="border border-stone-200 bg-paper-2 p-6">

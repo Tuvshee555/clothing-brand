@@ -22,18 +22,20 @@ test('shopper: variant stock → cart → checkout → simulated QPay → demo a
   await drawer.getByRole('link', { name: 'Захиалах', exact: true }).click()
 
   await expect(page).toHaveURL(/\/checkout$/)
-  await expect(page.getByText('Энэ бол демо захиалга')).toBeVisible()
+  // The whole store is labelled a demo in the announcement bar; checkout itself reads like a real one.
+  await expect(page.getByText(/Демо дэлгүүр/).first()).toBeAttached()
   // Required fields are enforced on the server.
   await page.getByRole('button', { name: 'Захиалга баталгаажуулах' }).click()
   await expect(page.getByRole('alert').first()).toBeVisible()
-  await page.getByRole('button', { name: 'Жишээ мэдээлэл бөглөх' }).click()
-  await page.getByLabel(/портфолио демо бөгөөд/).check()
+  await page.getByRole('button', { name: 'Жишээ мэдээллээр бөглөх' }).click()
   await page.getByRole('button', { name: 'Захиалга баталгаажуулах' }).click()
 
   await expect(page).toHaveURL(/\/orders\/MN-\d+/, { timeout: 30_000 })
   await expect(page.getByRole('heading', { name: 'Төлбөрөө хийнэ үү' })).toBeVisible()
-  await page.getByRole('button', { name: /Туршилтын төлбөр хийх/ }).click()
-  await expect(page.getByText('Туршилтын QPay төлбөр бүртгэгдсэн. Бодит мөнгө шилжээгүй.')).toBeVisible({ timeout: 20_000 })
+  // A real, scannable QR (it only opens the agency's demo page) and bank buttons, as on a QPay invoice.
+  await expect(page.getByRole('img', { name: 'QPay QR код' })).toBeVisible()
+  await page.getByRole('button', { name: 'Хаан банк' }).click()
+  await expect(page.getByText('QPay төлбөр баталгаажлаа. Демо: бодит мөнгө шилжээгүй.')).toBeVisible({ timeout: 20_000 })
 
   // The order is now in the (demo) admin — reserved stock shows in the ledger.
   await page.getByRole('button', { name: /Удирдлагын самбарт харах/ }).click()
