@@ -329,16 +329,76 @@ export function factsAnswer(tc: ToolContext, p: CatalogProduct, u: Understood, f
 
 const BOTTOM_CATEGORIES = new Set(['trousers', 'jeans'])
 
+/** Body measurements a customer may give, by the chart column they belong to. */
+const BODY_MEASURES: { column: string; words: string }[] = [
+  { column: 'Цээж', words: 'цээж|\\bchest|\\bbust' },
+  { column: 'Бүсэлхий', words: 'бүсэлхий|бэлхүүс|\\bwaist' },
+  { column: 'Ташаа', words: 'ташаа|\\bhips?\\b' },
+]
+
+/**
+ * "цээж 98 см", "98см цээжтэй", "бүсэлхий маань 78" → the customer's own body measurement for one
+ * column of the owner's chart. Height and weight never count: the store has no rule for them.
+ */
+export function bodyMeasure(text: string, columns: string[]): { column: string; cm: number } | null {
+  for (const m of BODY_MEASURES) {
+    const column = columns.find((c) => c.startsWith(m.column))
+    if (!column) continue
+    const after = new RegExp(`(?:${m.words})\\S*\\s*(?:[^\\s\\d,.?!]+\\s+){0,2}(\\d{2,3})(?:[.,]\\d)?\\s*(?:см|cm)?(?![\\d.,]*\\s*(?:кг|kg))`, 'iu')
+    const before = new RegExp(`(\\d{2,3})(?:[.,]\\d)?\\s*(?:см|cm)?\\s*(?:${m.words})`, 'iu')
+    const hit = after.exec(text) ?? before.exec(text)
+    if (hit) return { column, cm: Number(hit[1]) }
+  }
+  return null
+}
+
+function chartRange(value: string | undefined): { lo: number; hi: number } | null {
+  const [lo, hi] = (value ?? '').split(/[–-]/).map((x) => Number(x.trim()))
+  return Number.isFinite(lo) && lo > 0 ? { lo, hi: Number.isFinite(hi) && hi > 0 ? hi : lo } : null
+}
+
+/** "M" for chart row "30 / M"-style labels: every part of the label can name the product's size. */
+function variantsForChartSize(p: CatalogProduct, rowSize: string): CatalogVariant[] {
+  const names = rowSize.split('/').map((x) => x.trim().toUpperCase())
+  return p.variants.filter((v) => v.isActive && names.includes(v.size.toUpperCase()))
+}
+
 /**
  * Which size to take: the owner's size chart and the product's published fit —
- * never a size picked from height and weight, which the store has no rule for.
+ * never a size picked from height and weight, which the store has no rule for. A body
+ * measurement the customer gives (chest, waist, hips) is read against that chart.
  */
-export function sizeAdviceAnswer(tc: ToolContext, p: CatalogProduct | null): Answer {
-  const guide = p && BOTTOM_CATEGORIES.has(p.categorySlug) ? tc.sizeGuide.bottoms : tc.sizeGuide.tops
+export function sizeAdviceAnswer(tc: ToolContext, p: CatalogProduct | null, text = ''): Answer {
+  const tops = tc.sizeGuide.tops, bottoms = tc.sizeGuide.bottoms
+  const measureOf = (g: typeof tops) => bodyMeasure(text, g.columns)
+  const guide = p ? (BOTTOM_CATEGORIES.has(p.categorySlug) ? bottoms : tops) : (!measureOf(tops) && measureOf(bottoms) ? bottoms : tops)
+  const measure = text ? measureOf(guide) : null
   const oneSize = p && p.sizes.length === 1
   const lines: string[] = []
   if (oneSize) {
     lines.push(`${quote(p!)} нэг хэмжээтэй (${sizeLabel(p!.sizes[0])}).`)
+  } else if (measure) {
+    const label = measure.column.replace(/\s*\(.*\)\s*$/, '')
+    const rows = guide.rows.filter((row) => {
+      const r = chartRange(row[measure.column])
+      return r !== null && measure.cm >= r.lo && measure.cm <= r.hi
+    })
+    if (p) lines.push(`${quote(p)}${p.fit ? ` — хэлбэр: ${p.fit}.` : '.'}`)
+    if (rows.length === 1) {
+      const row = rows[0]
+      lines.push(`${label} ${measure.cm} см бол манай хүснэгтээр ${row.size} хэмжээ (${label.toLowerCase()} ${row[measure.column]} см).`)
+      const stock = p ? variantsForChartSize(p, row.size) : []
+      if (stock.length) {
+        lines.push(`${sizeLabel(stock[0].size)} хэмжээ одоо:`)
+        for (const v of stock) lines.push(`- ${colorOf(p!, v)?.name ?? 'Өнгө'}: ${stockPhrase(tc, v)}`)
+      }
+    } else if (rows.length > 1) {
+      lines.push(`${label} ${measure.cm} см нь ${rows.map((row) => `${row.size} (${row[measure.column]} см)`).join(' ба ')} хэмжээний заагт байна.`)
+      if (tc.sizeGuide.note) lines.push(tc.sizeGuide.note)
+    } else {
+      lines.push(`${label} ${measure.cm} см манай хэмжээний хүснэгтэд (${guide.rows.map((row) => row.size).join(', ')}) багтахгүй байна — ажилтнаас тодруулаарай.`)
+    }
+    lines.push('Бүтэн хүснэгт: [хэмжээний хүснэгт](/size-guide). Эргэлзвэл «ажилтантай холбогдох» гэж бичээрэй — ажилтан тусална.')
   } else {
     if (p) lines.push(`${quote(p)}${p.fit ? ` — хэлбэр: ${p.fit}.` : '.'}`)
     lines.push('Өндөр, жингээр хэмжээ сонгох баталгаатай дүрэм манайд байхгүй тул таамаглаж хэлэхгүй. Биеийн хэмжээгээ хүснэгттэй харьцуулаарай:')

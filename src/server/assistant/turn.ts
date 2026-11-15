@@ -299,7 +299,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
 
   const productQuestion = (product || ambiguous.length) && asksAboutProduct
   if (u.policy && !productQuestion) {
-    if (u.policy === 'size_guide') return done({ ...sizeAdviceAnswer(tc, product ?? focusProduct), intent: 'policy' })
+    if (u.policy === 'size_guide') return done({ ...sizeAdviceAnswer(tc, product ?? focusProduct, input.text), intent: 'policy' })
     return done({ ...policyAnswer(tc, u.policy), intent: 'policy' })
   }
 
@@ -309,7 +309,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
     const t = q.topics
     const has = (x: Topic) => t.includes(x)
     let answer: Answer
-    if (has('size_advice')) answer = sizeAdviceAnswer(tc, product)
+    if (has('size_advice')) answer = sizeAdviceAnswer(tc, product, input.text)
     else if (has('compare') && candidates.length >= 2) answer = compareAnswer(tc, candidates.includes(product) ? candidates : [product, ...candidates])
     else if (has('other_color')) answer = colorsAnswer(tc, product, q, focus, now, true)
     else if (has('colors') && q.colors.length === 0) answer = colorsAnswer(tc, product, q, focus, now)
@@ -356,7 +356,7 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
     return done({ ...listAnswer(tc, ambiguous, 'Аль барааны талаар асууж байна вэ?'), intent: 'clarify', events: ['clarify'] })
   }
   if (q.topics.includes('compare') && candidates.length >= 2) return done({ ...compareAnswer(tc, candidates), intent: 'product' })
-  if (q.topics.includes('size_advice')) return done({ ...sizeAdviceAnswer(tc, focusProduct), intent: 'product' })
+  if (q.topics.includes('size_advice')) return done({ ...sizeAdviceAnswer(tc, focusProduct, input.text), intent: 'product' })
 
   // ── 6. Search / browse ──
   const filtersGiven = u.garments.length > 0 || u.maxPrice !== null || u.minPrice !== null || u.colors.length > 0 || u.sizes.length > 0 || u.tags.length > 0 || u.audience !== null || u.cheapest || u.priciest

@@ -185,6 +185,15 @@ describe('shopping help', () => {
     expect(r?.actions?.some((a) => a.type === 'link' && a.href === '/size-guide')).toBe(true)
   })
 
+  it('a chest measurement is read against the size chart, with that size in stock', async () => {
+    const r = await startChat(db).say('Цээж 98 см, оверсайз hoodie ямар размер авах вэ?')
+    expect(r?.text).toMatch(/Цээж 98 см бол манай хүснэгтээр M хэмжээ/)
+    expect(r?.text).toContain('M хэмжээ одоо:')
+    expect(r?.text).not.toMatch(/таамаглаж хэлэхгүй/)
+    const edge = await startChat(db).say('Цээж 88 см, оверсайз hoodie аль размер вэ?')
+    expect(edge?.text).toMatch(/XS \(84–88 см\) ба S \(88–94 см\)/)
+  })
+
   it('compares the products just listed', async () => {
     const chat = startChat(db)
     await chat.say('Оксфорд цамц, маалинган цамц хоёрын ялгаа юу вэ?')
