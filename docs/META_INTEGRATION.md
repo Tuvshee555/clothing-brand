@@ -4,8 +4,10 @@ MANAN's assistant answers Facebook Messenger and Instagram Direct messages with 
 
 **State (2026-11-20):** the MANAN Page is connected to the Ursgal Digital app at the hub
 (https://www.ursgaldigital.com/holboh). This deployment runs **behind the hub**: the hub is the
-only Meta webhook, forwards MANAN's events here and lends the Page token. Until the three
-`URSGAL_HUB_*` values are set, the webhook answers 503 and the hub's own assistant answers MANAN.
+only Meta webhook, forwards MANAN's events here and lends the Page token. The MANAN route and
+the three `URSGAL_HUB_*` values were set on 2026-11-20, with `META_APP_ID` switched to the new
+app and comment replies on (`META_COMMENT_REPLIES_ENABLED=true`). Until the Page is assigned to
+the route at /holboh/admin, the hub's own assistant answers MANAN.
 
 ## Behind the Ursgal hub (current setup)
 
