@@ -67,6 +67,37 @@ describe('configuration', () => {
   })
 })
 
+describe('configuration behind the Ursgal hub', () => {
+  const ROUTE = '0123456789abcdef'
+  const HUB_SECRET = 'h'.repeat(43)
+
+  it('needs only the hub route and the Page id: no app secret, verify token or Page token', () => {
+    vi.stubEnv('META_APP_SECRET', '')
+    vi.stubEnv('META_VERIFY_TOKEN', '')
+    vi.stubEnv('META_PAGE_ACCESS_TOKEN', '')
+    vi.stubEnv('META_PAGE_ID', PAGE)
+    vi.stubEnv('URSGAL_HUB_URL', 'https://www.ursgaldigital.com/')
+    vi.stubEnv('URSGAL_HUB_ROUTE_ID', ROUTE)
+    vi.stubEnv('URSGAL_HUB_SECRET', HUB_SECRET)
+    expect(metaConfig()!.access).toEqual({ mode: 'hub', hubUrl: 'https://www.ursgaldigital.com', routeId: ROUTE, routeSecret: HUB_SECRET })
+    expect(missingMetaVariables()).toEqual([])
+  })
+  it('an incomplete hub setup stays closed and names the missing hub values', () => {
+    vi.stubEnv('META_APP_SECRET', '')
+    vi.stubEnv('META_PAGE_ACCESS_TOKEN', '')
+    vi.stubEnv('META_PAGE_ID', PAGE)
+    vi.stubEnv('URSGAL_HUB_URL', 'https://www.ursgaldigital.com')
+    vi.stubEnv('URSGAL_HUB_ROUTE_ID', 'not-a-route')
+    vi.stubEnv('URSGAL_HUB_SECRET', 'short')
+    expect(metaConfig()).toBeNull()
+    expect(missingMetaVariables()).toEqual(['URSGAL_HUB_ROUTE_ID', 'URSGAL_HUB_SECRET'])
+    vi.stubEnv('URSGAL_HUB_ROUTE_ID', ROUTE)
+    vi.stubEnv('URSGAL_HUB_SECRET', HUB_SECRET)
+    vi.stubEnv('URSGAL_HUB_URL', 'http://www.ursgaldigital.com')
+    expect(metaConfig()).toBeNull()
+  })
+})
+
 const message = (sender: string, mid: string, text: string, extra: Record<string, unknown> = {}) => ({ sender: { id: sender }, recipient: { id: PAGE }, timestamp: 1_790_000_000_000, message: { mid, text, ...extra } })
 
 describe('parseWebhook', () => {

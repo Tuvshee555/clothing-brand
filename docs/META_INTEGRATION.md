@@ -2,7 +2,35 @@
 
 MANAN's assistant answers Facebook Messenger and Instagram Direct messages with the MANAN shopping assistant (catalogue, variants, stock, delivery rules) — the same engine, data, rate limits and takeover rules as the website chat. Nothing about the assistant's intelligence changed; this is the transport.
 
-**State:** code ready and tested with signed, mocked Meta events. Not connected: no Meta credentials are configured, so the webhook answers 503.
+**State (2026-11-20):** the MANAN Page is connected to the Ursgal Digital app at the hub
+(https://www.ursgaldigital.com/holboh). This deployment runs **behind the hub**: the hub is the
+only Meta webhook, forwards MANAN's events here and lends the Page token. Until the three
+`URSGAL_HUB_*` values are set, the webhook answers 503 and the hub's own assistant answers MANAN.
+
+## Behind the Ursgal hub (current setup)
+
+| Variable | Value | Required |
+|---|---|---|
+| `URSGAL_HUB_URL` | `https://www.ursgaldigital.com` | yes |
+| `URSGAL_HUB_ROUTE_ID` | the route id from https://www.ursgaldigital.com/holboh/admin (16 hex characters) | yes |
+| `URSGAL_HUB_SECRET` | the route secret shown once when the route is created (Sensitive) | yes |
+| `META_PAGE_ID` | MANAN's Page id | yes |
+| `META_INSTAGRAM_ACCOUNT_ID` | once an Instagram account is linked to the Page | for Instagram |
+| `META_APP_ID` | `1153306444307981` (recognises the bot's own echoes) | optional |
+| `META_OUTBOUND_ENABLED`, `META_COMMENT_REPLIES_ENABLED`, … | as below | optional |
+
+- `POST` accepts only a delivery signed with the route secret (`x-ursgal-route`,
+  `x-ursgal-timestamp`, `x-ursgal-signature`, signed within 5 minutes); Meta's own signature is
+  refused, and `GET` (Meta's handshake) answers 404.
+- Replies borrow the Page token and its `appsecret_proof` from the hub
+  (`POST /api/meta/page-token`, kept in memory for 10 minutes). A refused or failed token request
+  fails the send, which is retried like any failed send; Meta error 190 drops the cached token.
+- `META_APP_SECRET`, `META_VERIFY_TOKEN` and `META_PAGE_ACCESS_TOKEN` are not needed and should be
+  removed. `src/server/meta/hub-client.ts` is the hub's `lib/meta/hub-client.ts`, copied unchanged.
+
+## Direct (older setup, still supported)
+
+Meta calls this deployment itself. Used only when the `URSGAL_HUB_*` values are not set.
 
 ## Callback
 
@@ -31,13 +59,13 @@ Use only credentials of the new Meta app and Page. Never reuse any value from th
 
 - Messenger: `pages_messaging`, `pages_manage_metadata`, `pages_show_list`, `pages_read_engagement`.
 - Instagram via the Page (Facebook Login): `instagram_basic`, `instagram_manage_messages`; for comment replies `instagram_manage_comments`.
-- Page comment replies: the `feed` webhook field and `pages_messaging`; Meta may also require `pages_read_user_content` for comment content — confirm in App Review.
+- Page comment replies: the `feed` webhook field (needs `pages_manage_metadata` and `pages_show_list`) and `pages_messaging`.
 - The Page token must come from a person with the MESSAGING task on the Page.
 
 ## How it behaves
 
-1. `GET` echoes `hub.challenge` only for the right verify token (constant-time compare).
-2. `POST` verifies the HMAC-SHA256 signature over the raw body, then accepts only events for `META_PAGE_ID` / `META_INSTAGRAM_ACCOUNT_ID`, stores each one in `meta_webhook_events` (keyed by Meta's message or comment id) and answers 200 at once. A storage failure answers 503, so Meta retries.
+1. `GET` echoes `hub.challenge` only for the right verify token (constant-time compare; direct setup only).
+2. `POST` verifies the signature over the raw body (the hub's route signature, or Meta's HMAC-SHA256 in the direct setup), then accepts only events for `META_PAGE_ID` / `META_INSTAGRAM_ACCOUNT_ID`, stores each one in `meta_webhook_events` (keyed by Meta's message or comment id) and answers 200 at once. A storage failure answers 503, so Meta retries.
 3. After the response, each stored event is claimed with a lease and answered. A Meta retry of the same event is recognised and never answered twice; the engine also de-duplicates by message id; delivered reply parts are counted, so a retry after a failed send never repeats a part. A timeout is recorded as `uncertain` and never resent automatically. Up to 5 attempts; a later webhook also picks up events an interrupted run left behind.
 4. Replies are `messaging_type: RESPONSE` to what the person just did, only inside Meta's 24-hour window (7 days for a comment's private reply). There is no broadcast, campaign or message-tag code.
 5. Human handover: a reply typed in the Page inbox (Meta Business Suite) arrives as an echo; the conversation is taken over, the reply is logged as a staff message and the assistant stays silent until it is handed back (or the owner's auto-resume time passes). Staff answer Messenger/Instagram customers from the Page inbox; the admin's reply box refuses these chats with a message saying so.

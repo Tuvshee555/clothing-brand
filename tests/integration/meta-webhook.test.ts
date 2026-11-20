@@ -9,6 +9,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import * as t from '@/server/db/schema'
 import { mananMetaAdapter, metaVisitorKey } from '@/server/meta/adapter'
 import { BOT_METADATA } from '@/server/meta/graph'
+import { clearPageTokenCache, signHubRequest } from '@/server/meta/hub-client'
 import { processReceipt } from '@/server/meta/process'
 import { metaConfig } from '@/server/meta/config'
 import { conversationScope } from '@/server/queries/assistant-scope'
@@ -228,5 +229,85 @@ describe('comment triggers', () => {
     expect(sent[0].url.pathname).toBe(`/v25.0/${PAGE}/messages`)
     expect(sent[0].body.recipient).toEqual({ comment_id: '10_101' })
     expect(sent[0].body.message.text).toContain('Messenger')
+  })
+})
+
+describe('behind the Ursgal hub', () => {
+  const ROUTE = '0123456789abcdef'
+  const HUB_SECRET = 'route-secret-'.padEnd(43, 'x')
+  const HUB_TOKEN = 'token-from-the-hub'
+  const PROOF = 'a'.repeat(64)
+  let tokenRequests: number
+  let hubStatus: number
+
+  beforeEach(() => {
+    vi.stubEnv('META_APP_SECRET', '')
+    vi.stubEnv('META_VERIFY_TOKEN', '')
+    vi.stubEnv('META_PAGE_ACCESS_TOKEN', '')
+    vi.stubEnv('URSGAL_HUB_URL', 'https://hub.test')
+    vi.stubEnv('URSGAL_HUB_ROUTE_ID', ROUTE)
+    vi.stubEnv('URSGAL_HUB_SECRET', HUB_SECRET)
+    tokenRequests = 0
+    hubStatus = 200
+    clearPageTokenCache()
+    const graph = globalThis.fetch
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async (input: string | URL, init?: RequestInit) => {
+        const url = new URL(String(input))
+        if (url.hostname !== 'hub.test') return graph(input, init)
+        tokenRequests++
+        expect(url.pathname).toBe('/api/meta/page-token')
+        const headers = new Headers(init?.headers)
+        expect(headers.get('x-ursgal-route')).toBe(ROUTE)
+        expect(JSON.parse(String(init?.body))).toEqual({ pageId: PAGE })
+        if (hubStatus !== 200) return Response.json({ error: 'unauthorized' }, { status: hubStatus })
+        return Response.json({ token: HUB_TOKEN, instagramId: IG, appsecretProof: PROOF })
+      }),
+    )
+  })
+
+  async function forwarded(payload: unknown, secret = HUB_SECRET) {
+    const raw = JSON.stringify(payload)
+    const tasks: Promise<void>[] = []
+    const res = await receiveWebhook(
+      new Request('https://shop.test/api/meta/webhook', { method: 'POST', body: raw, headers: { 'content-type': 'application/json', ...signHubRequest(ROUTE, secret, raw) } }),
+      db,
+      mananMetaAdapter,
+      (task) => void tasks.push(task()),
+    )
+    await Promise.all(tasks)
+    return res
+  }
+
+  it("answers a delivery signed with the route's secret, using the hub's Page token and proof", async () => {
+    expect((await forwarded(dm('6000000001', 'Сайн байна уу'))).status).toBe(200)
+    expect(sent).toHaveLength(1)
+    expect(sent[0].url.searchParams.get('access_token')).toBe(HUB_TOKEN)
+    expect(sent[0].url.searchParams.get('appsecret_proof')).toBe(PROOF)
+    await forwarded(dm('6000000001', 'hoodie baigaa yu'))
+    expect(sent).toHaveLength(2)
+    expect(tokenRequests).toBe(1) // kept for 10 minutes
+  })
+
+  it("refuses Meta's own signature, another route's secret and the GET handshake", async () => {
+    const before = await db.$count(t.metaWebhookEvents)
+    expect((await deliver(dm('6000000002', 'Сайн уу'))).status).toBe(401)
+    expect((await forwarded(dm('6000000002', 'Сайн уу'), 'another-route-secret'.padEnd(43, 'y'))).status).toBe(401)
+    expect(await db.$count(t.metaWebhookEvents)).toBe(before)
+    const handshake = `https://shop.test/api/meta/webhook?hub.mode=subscribe&hub.verify_token=${VERIFY}&hub.challenge=1`
+    expect(verifySubscription(new Request(handshake)).status).toBe(404)
+  })
+
+  it('a refused token request is retried later with the same answer, and nothing reaches Meta meanwhile', async () => {
+    hubStatus = 401
+    const payload = dm('6000000003', 'Хүргэлт хэд хоног вэ?')
+    await forwarded(payload)
+    expect(sent).toHaveLength(0)
+    const [receipt] = await db.select().from(t.metaWebhookEvents).where(and(eq(t.metaWebhookEvents.status, 'failed'), eq(t.metaWebhookEvents.outcome, 'send_failed:hub_token_401')))
+    expect(receipt).toBeDefined()
+    hubStatus = 200
+    await processReceipt(db, metaConfig()!, mananMetaAdapter, receipt.id)
+    expect(sent).toHaveLength(1)
   })
 })

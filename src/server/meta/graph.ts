@@ -10,6 +10,7 @@
 import 'server-only'
 import type { MetaConfig } from './config'
 import type { MetaPlatform } from './events'
+import { clearPageTokenCache, fetchPageToken, HubTokenError } from './hub-client'
 import { appSecretProof } from './signature'
 
 /** Tags our own messages so their echoes are never mistaken for a staff reply. */
@@ -20,13 +21,29 @@ export type Recipient = { id: string } | { comment_id: string }
 export type OutgoingMessage = { text: string; quick_replies?: { content_type: 'text'; title: string; payload: string }[]; metadata?: string }
 export type Delivery = { status: 'sent'; messageId: string | null } | { status: 'failed'; code: string } | { status: 'uncertain' }
 
+type Credentials = { token: string; proof: string | null }
+
+/** The Page token and its appsecret_proof: our own in direct mode, borrowed from the hub (cached 10 minutes) behind it. */
+async function pageCredentials(config: MetaConfig): Promise<Credentials | { failed: string }> {
+  const access = config.access
+  if (access.mode === 'direct') return { token: access.pageToken, proof: appSecretProof(access.pageToken, access.appSecret) }
+  try {
+    const page = await fetchPageToken(access.hubUrl, access.routeId, access.routeSecret, config.pageId)
+    return { token: page.token, proof: page.appsecretProof }
+  } catch (err) {
+    return { failed: err instanceof HubTokenError ? `hub_token_${err.status}` : 'hub_unreachable' }
+  }
+}
+
 export async function sendMessage(config: MetaConfig, platform: MetaPlatform, recipient: Recipient, message: OutgoingMessage): Promise<Delivery> {
   // A private reply to an Instagram comment is sent as the Instagram account; everything else as the Page.
   const sender = platform === 'instagram' && 'comment_id' in recipient ? config.instagramId : config.pageId
   if (!sender) return { status: 'failed', code: 'no_sender' }
+  const credentials = await pageCredentials(config)
+  if ('failed' in credentials) return { status: 'failed', code: credentials.failed }
   const url = new URL(`https://graph.facebook.com/${config.graphVersion}/${sender}/messages`)
-  url.searchParams.set('access_token', config.pageToken)
-  url.searchParams.set('appsecret_proof', appSecretProof(config.pageToken, config.appSecret))
+  url.searchParams.set('access_token', credentials.token)
+  if (credentials.proof) url.searchParams.set('appsecret_proof', credentials.proof)
   let res: Response
   try {
     res = await fetch(url, {
@@ -40,6 +57,8 @@ export async function sendMessage(config: MetaConfig, platform: MetaPlatform, re
     return { status: 'uncertain' }
   }
   const body = (await res.json().catch(() => null)) as { message_id?: string; error?: { code?: number; error_subcode?: number } } | null
+  // An expired or replaced token (the Page was reconnected at the hub): ask the hub again on the retry.
+  if (!res.ok && body?.error?.code === 190 && config.access.mode === 'hub') clearPageTokenCache()
   if (!res.ok) return { status: 'failed', code: `http_${res.status}:${body?.error?.code ?? 'x'}${body?.error?.error_subcode ? `/${body.error.error_subcode}` : ''}` }
   return { status: 'sent', messageId: body?.message_id ?? null }
 }
