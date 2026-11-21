@@ -15,7 +15,7 @@ import 'server-only'
 import type { Database } from '@/server/db/client'
 import type { MetaConfig } from './config'
 import { commentMatches, eventKey, type MetaPlatform } from './events'
-import { BOT_METADATA, chunkText, quickReplies, sendMessage, type Chip, type Delivery } from './graph'
+import { BOT_METADATA, chunkText, instagramCommentStatus, quickReplies, sendMessage, type Chip, type Delivery } from './graph'
 import { claimReceipt, failReceipt, finishReceipt, rememberSent, rememberSentText, REPLY_WINDOW_MS, saveProgress, skipUnstartedReceipt, staleReceipts, wasSentByUs, wasTextSentByUs, type ReceiptPayload } from './receipts'
 
 const COMMENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
@@ -117,6 +117,9 @@ export async function processReceipt(db: Database, config: MetaConfig, adapter: 
       if (!config.commentReplies) return finishReceipt(db, key, 'skipped', 'comment_replies_off')
       if (!commentMatches(event.text, config.commentKeywords)) return finishReceipt(db, key, 'skipped', 'no_trigger_word')
       if (now.getTime() - event.at > COMMENT_WINDOW_MS) return finishReceipt(db, key, 'expired', 'outside_7d_window')
+      if (event.platform === 'instagram' && config.outbound && (await instagramCommentStatus(config, event.commentId)) === 'gone') {
+        return finishReceipt(db, key, 'skipped', 'comment_deleted')
+      }
       const result = await deliver(db, config, event, event.platform, { comment_id: event.commentId }, { text: adapter.commentReply })
       if (result.status === 'retry') return failReceipt(db, key, result.outcome)
       log('meta.comment_reply', { platform: event.platform, outcome: result.outcome })

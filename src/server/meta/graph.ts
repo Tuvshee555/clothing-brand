@@ -35,6 +35,28 @@ async function pageCredentials(config: MetaConfig): Promise<Credentials | { fail
   }
 }
 
+/**
+ * Reads an Instagram comment before its private reply, so a comment the person
+ * has already deleted gets none. Only Meta's "does not exist" answer stops the
+ * reply; anything else (a timeout, a permission error) lets it go ahead.
+ */
+export async function instagramCommentStatus(config: MetaConfig, commentId: string): Promise<'present' | 'gone' | 'unknown'> {
+  const credentials = await pageCredentials(config)
+  if ('failed' in credentials) return 'unknown'
+  const url = new URL(`https://graph.facebook.com/${config.graphVersion}/${encodeURIComponent(commentId)}`)
+  url.searchParams.set('fields', 'id')
+  url.searchParams.set('access_token', credentials.token)
+  if (credentials.proof) url.searchParams.set('appsecret_proof', credentials.proof)
+  try {
+    const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(TIMEOUT_MS), cache: 'no-store' })
+    if (res.ok) return 'present'
+    const body = (await res.json().catch(() => null)) as { error?: { code?: number; error_subcode?: number } } | null
+    return body?.error?.code === 100 && body.error.error_subcode === 33 ? 'gone' : 'unknown'
+  } catch {
+    return 'unknown'
+  }
+}
+
 export async function sendMessage(config: MetaConfig, platform: MetaPlatform, recipient: Recipient, message: OutgoingMessage): Promise<Delivery> {
   // A private reply to an Instagram comment is sent as the Instagram account; everything else as the Page.
   const sender = platform === 'instagram' && 'comment_id' in recipient ? config.instagramId : config.pageId

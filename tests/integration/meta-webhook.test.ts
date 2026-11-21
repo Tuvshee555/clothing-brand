@@ -27,6 +27,8 @@ let db: TestDb
 let cleanup: () => Promise<void>
 let sent: { url: URL; body: { recipient: Record<string, string>; messaging_type: string; message: { text: string; metadata: string; quick_replies?: unknown[] } } }[]
 let graphStatus: number
+let reads: URL[]
+const deletedComments = new Set<string>()
 
 beforeAll(async () => {
   delete process.env.OPENAI_API_KEY
@@ -43,12 +45,21 @@ beforeEach(() => {
   vi.stubEnv('META_OUTBOUND_ENABLED', 'true')
   vi.stubEnv('META_COMMENT_REPLIES_ENABLED', '')
   sent = []
+  reads = []
   graphStatus = 200
   vi.stubGlobal(
     'fetch',
     vi.fn(async (input: string | URL, init?: RequestInit) => {
       const url = new URL(String(input))
       if (url.hostname !== 'graph.facebook.com') throw new Error(`unexpected fetch ${url.hostname}`)
+      // A read (the Instagram comment check) is not a sent message.
+      if ((init?.method ?? 'GET') === 'GET') {
+        reads.push(url)
+        if (deletedComments.has(decodeURIComponent(url.pathname.split('/').pop() ?? ''))) {
+          return Response.json({ error: { code: 100, error_subcode: 33, message: 'Unsupported get request.' } }, { status: 400 })
+        }
+        return Response.json({ id: url.pathname.split('/').pop() })
+      }
       sent.push({ url, body: JSON.parse(String(init?.body)) })
       if (graphStatus !== 200) return Response.json({ error: { code: 2, message: 'temporary' } }, { status: graphStatus })
       return Response.json({ recipient_id: '1', message_id: `m_sent_${sent.length}_${Math.random().toString(36).slice(2)}` })
@@ -219,6 +230,16 @@ describe('human handover', () => {
     await deliver(igDm('4000000098', 'Сайн уу'))
     await deliver(igEcho('4000000098', 'Сайн байна уу, би Сараа байна.'))
     expect((await conversationOf('instagram', '4000000098', IG)).paused).toBe(true)
+  })
+
+  it('an Instagram comment is read before its private reply, and a deleted one gets none', async () => {
+    vi.stubEnv('META_COMMENT_REPLIES_ENABLED', 'true')
+    await deliver(igComment('4000000095', 'Үнэ хэд вэ?', '17900000000000002'))
+    expect(reads.map((u) => u.pathname.split('/').pop())).toContain('17900000000000002')
+    expect(sent).toHaveLength(1)
+    deletedComments.add('17900000000000003')
+    await deliver(igComment('4000000095', 'Үнэ хэд вэ?', '17900000000000003'))
+    expect(sent).toHaveLength(1)
   })
 
   it('a message the customer unsends on Instagram leaves the conversation history', async () => {
