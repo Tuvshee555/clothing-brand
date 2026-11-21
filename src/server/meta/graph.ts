@@ -40,20 +40,25 @@ async function pageCredentials(config: MetaConfig): Promise<Credentials | { fail
  * has already deleted gets none. Only Meta's "does not exist" answer stops the
  * reply; anything else (a timeout, a permission error) lets it go ahead.
  */
-export async function instagramCommentStatus(config: MetaConfig, commentId: string): Promise<'present' | 'gone' | 'unknown'> {
+/** Why a comment check could not tell: a Graph error code ("10", "100/33"), an HTTP status or a fetch failure. */
+export type CommentStatus = { status: 'present' } | { status: 'gone' } | { status: 'unknown'; error: string }
+
+export async function instagramCommentStatus(config: MetaConfig, commentId: string): Promise<CommentStatus> {
   const credentials = await pageCredentials(config)
-  if ('failed' in credentials) return 'unknown'
+  if ('failed' in credentials) return { status: 'unknown', error: credentials.failed }
   const url = new URL(`https://graph.facebook.com/${config.graphVersion}/${encodeURIComponent(commentId)}`)
   url.searchParams.set('fields', 'id')
   url.searchParams.set('access_token', credentials.token)
   if (credentials.proof) url.searchParams.set('appsecret_proof', credentials.proof)
   try {
     const res = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(TIMEOUT_MS), cache: 'no-store' })
-    if (res.ok) return 'present'
+    if (res.ok) return { status: 'present' }
     const body = (await res.json().catch(() => null)) as { error?: { code?: number; error_subcode?: number } } | null
-    return body?.error?.code === 100 && body.error.error_subcode === 33 ? 'gone' : 'unknown'
-  } catch {
-    return 'unknown'
+    if (body?.error?.code === 100 && body.error.error_subcode === 33) return { status: 'gone' }
+    const code = body?.error?.code
+    return { status: 'unknown', error: code ? `${code}${body?.error?.error_subcode ? `/${body.error.error_subcode}` : ''}` : `http_${res.status}` }
+  } catch (err) {
+    return { status: 'unknown', error: err instanceof Error ? err.name : 'fetch_failed' }
   }
 }
 

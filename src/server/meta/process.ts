@@ -117,8 +117,11 @@ export async function processReceipt(db: Database, config: MetaConfig, adapter: 
       if (!config.commentReplies) return finishReceipt(db, key, 'skipped', 'comment_replies_off')
       if (!commentMatches(event.text, config.commentKeywords)) return finishReceipt(db, key, 'skipped', 'no_trigger_word')
       if (now.getTime() - event.at > COMMENT_WINDOW_MS) return finishReceipt(db, key, 'expired', 'outside_7d_window')
-      if (event.platform === 'instagram' && config.outbound && (await instagramCommentStatus(config, event.commentId)) === 'gone') {
-        return finishReceipt(db, key, 'skipped', 'comment_deleted')
+      if (event.platform === 'instagram' && config.outbound) {
+        // The person may have deleted the comment already; only Meta's "does not exist" stops the reply.
+        const comment = await instagramCommentStatus(config, event.commentId)
+        log('meta.comment_checked', { status: comment.status, error: comment.status === 'unknown' ? comment.error : null })
+        if (comment.status === 'gone') return finishReceipt(db, key, 'skipped', 'comment_deleted')
       }
       const result = await deliver(db, config, event, event.platform, { comment_id: event.commentId }, { text: adapter.commentReply })
       if (result.status === 'retry') return failReceipt(db, key, result.outcome)
