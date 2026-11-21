@@ -20,6 +20,11 @@ https://manan-store.vercel.app
 
 `APP_URL` is optional; on Vercel the app uses `VERCEL_PROJECT_PRODUCTION_URL`.
 
+The database pool (`src/server/db/index.ts`) closes idle connections after 5 seconds and is
+registered with Vercel's `attachDatabasePool`, so a paused function never wakes up holding a
+connection Neon has closed ("Connection terminated unexpectedly"). `DB_POOL_MAX` (default 5)
+sets its size.
+
 ## Database changes
 
 A production deploy applies pending migrations and the idempotent seed itself
