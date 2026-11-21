@@ -43,6 +43,16 @@ export async function claimReceipt(db: Database, key: string, now = new Date()):
   return row ?? null
 }
 
+/** Skips a receipt nobody has started on (the customer unsent the message), dropping its text. */
+export async function skipUnstartedReceipt(db: Database, key: string, outcome: string): Promise<boolean> {
+  const rows = await db
+    .update(t.metaWebhookEvents)
+    .set({ status: 'skipped', outcome, leaseUntil: null, processedAt: new Date(), payload: sql`${t.metaWebhookEvents.payload} - 'text'` })
+    .where(and(eq(t.metaWebhookEvents.id, key), inArray(t.metaWebhookEvents.status, ['pending', 'failed'])))
+    .returning({ id: t.metaWebhookEvents.id })
+  return rows.length > 0
+}
+
 /** Remembers how many reply parts were delivered, so a retry never repeats them. */
 export async function saveProgress(db: Database, key: string, payload: ReceiptPayload): Promise<void> {
   await db.update(t.metaWebhookEvents).set({ payload }).where(eq(t.metaWebhookEvents.id, key))

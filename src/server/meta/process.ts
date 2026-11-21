@@ -14,9 +14,9 @@
 import 'server-only'
 import type { Database } from '@/server/db/client'
 import type { MetaConfig } from './config'
-import { commentMatches, type MetaPlatform } from './events'
+import { commentMatches, eventKey, type MetaPlatform } from './events'
 import { BOT_METADATA, chunkText, quickReplies, sendMessage, type Chip, type Delivery } from './graph'
-import { claimReceipt, failReceipt, finishReceipt, rememberSent, rememberSentText, REPLY_WINDOW_MS, saveProgress, staleReceipts, wasSentByUs, wasTextSentByUs, type ReceiptPayload } from './receipts'
+import { claimReceipt, failReceipt, finishReceipt, rememberSent, rememberSentText, REPLY_WINDOW_MS, saveProgress, skipUnstartedReceipt, staleReceipts, wasSentByUs, wasTextSentByUs, type ReceiptPayload } from './receipts'
 
 const COMMENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -37,6 +37,8 @@ export interface MetaAdapter {
   answer(db: Database, input: { platform: MetaPlatform; accountId: string; senderId: string; text: string; messageId: string; at: Date }): Promise<MetaReply | null>
   /** A person replied from the Page inbox: the assistant leaves this conversation to staff. */
   staffReplied(db: Database, input: { platform: MetaPlatform; accountId: string; customerId: string; text: string; messageId: string; at: Date }): Promise<void>
+  /** The customer unsent a message: its text leaves the conversation history. */
+  unsent(db: Database, input: { platform: MetaPlatform; accountId: string; senderId: string; messageId: string; at: Date }): Promise<void>
   /** The one private reply sent to a matching comment. */
   commentReply: string
   /** Sent when someone sends only a photo or a sticker. */
@@ -103,6 +105,13 @@ export async function processReceipt(db: Database, config: MetaConfig, adapter: 
       await adapter.staffReplied(db, { platform: event.platform, accountId: event.accountId, customerId: event.recipientId, text: event.text, messageId: event.mid, at: new Date(event.at) })
       log('meta.staff_reply', { platform: event.platform })
       return finishReceipt(db, key, 'done', 'staff_took_over')
+    }
+    if (event.kind === 'unsend') {
+      // Not answered if nobody has started on it yet; either way its text is removed.
+      const before = await skipUnstartedReceipt(db, eventKey('message', event.platform, event.accountId, event.mid), 'unsent')
+      await adapter.unsent(db, { platform: event.platform, accountId: event.accountId, senderId: event.senderId, messageId: event.mid, at: new Date(event.at) })
+      log('meta.unsent', { platform: event.platform, answered: before ? 'no' : 'maybe' })
+      return finishReceipt(db, key, 'done', before ? 'unsent_before_reply' : 'unsent')
     }
     if (event.kind === 'comment') {
       if (!config.commentReplies) return finishReceipt(db, key, 'skipped', 'comment_replies_off')

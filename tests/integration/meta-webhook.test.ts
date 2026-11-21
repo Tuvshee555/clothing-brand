@@ -7,10 +7,12 @@ import { and, eq } from 'drizzle-orm'
 import { createHmac } from 'node:crypto'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import * as t from '@/server/db/schema'
-import { mananMetaAdapter, metaVisitorKey } from '@/server/meta/adapter'
+import { mananMetaAdapter, metaVisitorKey, UNSENT_TEXT } from '@/server/meta/adapter'
 import { BOT_METADATA } from '@/server/meta/graph'
 import { clearPageTokenCache, signHubRequest } from '@/server/meta/hub-client'
+import { eventKey, parseWebhook } from '@/server/meta/events'
 import { processReceipt } from '@/server/meta/process'
+import { recordEvents } from '@/server/meta/receipts'
 import { metaConfig } from '@/server/meta/config'
 import { conversationScope } from '@/server/queries/assistant-scope'
 import { receiveWebhook, verifySubscription } from '@/server/meta/webhook'
@@ -77,7 +79,8 @@ async function deliver(payload: unknown, secret = SECRET) {
 let seq = 0
 const mid = () => `m_test_${Date.now()}_${seq++}`
 const dm = (sender: string, text: string, id = mid(), at = Date.now()) => ({ object: 'page', entry: [{ id: PAGE, time: at, messaging: [{ sender: { id: sender }, recipient: { id: PAGE }, timestamp: at, message: { mid: id, text } }] }] })
-const igDm = (sender: string, text: string) => ({ object: 'instagram', entry: [{ id: IG, time: Date.now(), messaging: [{ sender: { id: sender }, recipient: { id: IG }, timestamp: Date.now(), message: { mid: mid(), text } }] }] })
+const igDm = (sender: string, text: string, id = mid()) => ({ object: 'instagram', entry: [{ id: IG, time: Date.now(), messaging: [{ sender: { id: sender }, recipient: { id: IG }, timestamp: Date.now(), message: { mid: id, text } }] }] })
+const igUnsend = (sender: string, id: string) => ({ object: 'instagram', entry: [{ id: IG, time: Date.now(), messaging: [{ sender: { id: sender }, recipient: { id: IG }, timestamp: Date.now(), message: { mid: id, is_deleted: true } }] }] })
 const echo = (customer: string, text: string, extra: Record<string, unknown> = {}) => ({ object: 'page', entry: [{ id: PAGE, time: Date.now(), messaging: [{ sender: { id: PAGE }, recipient: { id: customer }, timestamp: Date.now(), message: { mid: mid(), text, is_echo: true, ...extra } }] }] })
 const igEcho = (customer: string, text: string) => ({ object: 'instagram', entry: [{ id: IG, time: Date.now(), messaging: [{ sender: { id: IG }, recipient: { id: customer }, timestamp: Date.now(), message: { mid: mid(), text, is_echo: true } }] }] })
 const igComment = (from: string, text: string, commentId: string) => ({ object: 'instagram', entry: [{ id: IG, time: Date.now(), changes: [{ field: 'comments', value: { id: commentId, text, from: { id: from, username: 'tester' }, media: { id: '17800000000000001' } } }] }] })
@@ -216,6 +219,30 @@ describe('human handover', () => {
     await deliver(igDm('4000000098', 'Сайн уу'))
     await deliver(igEcho('4000000098', 'Сайн байна уу, би Сараа байна.'))
     expect((await conversationOf('instagram', '4000000098', IG)).paused).toBe(true)
+  })
+
+  it('a message the customer unsends on Instagram leaves the conversation history', async () => {
+    const id = mid()
+    await deliver(igDm('4000000097', 'Миний утас 99112233, ноолууран свитер байгаа юу?', id))
+    expect(sent).toHaveLength(1)
+    await deliver(igUnsend('4000000097', id))
+    const c = await conversationOf('instagram', '4000000097', IG)
+    const texts = (await messagesOf(c.id)).map((m) => m.text)
+    expect(texts.some((x) => x.includes('99112233'))).toBe(false)
+    expect((await messagesOf(c.id)).find((m) => m.role === 'customer')).toMatchObject({ text: UNSENT_TEXT, metadata: { unsent: true } })
+    expect(sent).toHaveLength(1)
+  })
+
+  it('a message unsent before anyone answered it is never answered', async () => {
+    const id = mid()
+    const config = metaConfig()!
+    await recordEvents(db, parseWebhook(igDm('4000000096', 'Энэ хэд вэ?', id), config))
+    await deliver(igUnsend('4000000096', id))
+    await processReceipt(db, config, mananMetaAdapter, eventKey('message', 'instagram', IG, id))
+    expect(sent).toHaveLength(0)
+    const [row] = await db.select().from(t.metaWebhookEvents).where(eq(t.metaWebhookEvents.id, eventKey('message', 'instagram', IG, id)))
+    expect(row).toMatchObject({ status: 'skipped', outcome: 'unsent' })
+    expect((row.payload as { text?: string }).text).toBeUndefined()
   })
 
   it('Messenger chats are visible to staff but never to the public demo role', async () => {

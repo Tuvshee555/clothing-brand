@@ -22,6 +22,8 @@ import { toMessengerText } from './text'
 
 export const metaVisitorKey = (platform: MetaPlatform, accountId: string, senderId: string) => `meta:${sha256Hex(`${platform}:${accountId}:${senderId}`)}`
 const engineMessageId = (mid: string) => `meta:${sha256Hex(mid).slice(0, 40)}`
+/** What staff see in place of a message the customer unsent (its text is gone). */
+export const UNSENT_TEXT = '(Хэрэглэгч энэ мессежээ буцаан авсан)'
 
 async function conversationFor(db: Database, platform: MetaPlatform, visitorKey: string) {
   const [c] = await db
@@ -93,6 +95,15 @@ export const mananMetaAdapter: MetaAdapter = {
         ...(inserted.length ? { messageCount: sql`${t.chatConversations.messageCount} + 1`, lastMessageAt: input.at } : {}),
       })
       .where(eq(t.chatConversations.id, c.id))
+  },
+
+  async unsent(db, input) {
+    const c = await conversationFor(db, input.platform, metaVisitorKey(input.platform, input.accountId, input.senderId))
+    if (!c) return
+    await db
+      .update(t.chatMessages)
+      .set({ text: UNSENT_TEXT, metadata: sql`${t.chatMessages.metadata} || '{"unsent": true}'::jsonb` })
+      .where(and(eq(t.chatMessages.conversationId, c.id), eq(t.chatMessages.clientMessageId, engineMessageId(input.messageId)), eq(t.chatMessages.role, 'customer')))
   },
 
   commentReply:

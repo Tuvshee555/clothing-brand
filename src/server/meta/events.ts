@@ -23,6 +23,7 @@ export type MetaEvent =
   | (Base & { kind: 'postback'; senderId: string; mid: string; text: string })
   | (Base & { kind: 'echo'; recipientId: string; mid: string; text: string; metadata: string | null; appId: string | null })
   | (Base & { kind: 'comment'; commentId: string; fromId: string; text: string })
+  | (Base & { kind: 'unsend'; senderId: string; mid: string })
 
 export const MAX_TEXT = 1200
 export const MAX_EVENTS = 50
@@ -75,6 +76,11 @@ export function parseWebhook(body: unknown, config: Pick<MetaConfig, 'pageId' | 
           continue
         }
         if (!ID.test(senderId) || senderId === accountId) continue
+        // The customer unsent (deleted) a message they had sent us.
+        if (message.is_deleted === true) {
+          events.push({ kind: 'unsend', key: eventKey('unsend', platform, accountId, mid), platform, accountId, at, senderId, mid })
+          continue
+        }
         // A tapped quick reply carries the full label as its payload; the visible text may be shortened.
         const text = (str(obj(message.quick_reply)?.payload) || str(message.text)).trim().slice(0, MAX_TEXT)
         const attachmentOnly = !text && list(message.attachments).length > 0
