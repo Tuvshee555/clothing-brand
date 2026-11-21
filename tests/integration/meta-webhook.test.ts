@@ -198,6 +198,8 @@ describe('human handover', () => {
   it('a reply typed in the Page inbox takes the chat over: the assistant stays silent', async () => {
     await deliver(dm('3000000010', 'Ажилтантай ярья'))
     expect(sent).toHaveLength(1)
+    // Staff answer Messenger in the Page inbox: no pointer to the website's demo admin.
+    expect(sent[0].body.message.text).not.toContain('Демо горимоор нэвтрэх')
     await deliver(echo('3000000010', 'Сайн байна уу, би Сараа байна.', { app_id: 263902037430900 }))
     const c = await conversationOf('messenger', '3000000010')
     expect(c.paused).toBe(true)

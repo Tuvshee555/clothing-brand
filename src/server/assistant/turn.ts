@@ -70,6 +70,8 @@ export interface OrderStatusView {
 
 export interface TurnInput {
   text: string
+  /** Where the customer writes. Messenger and Instagram customers are answered by staff in the Page inbox. */
+  channel?: 'website' | 'test' | 'messenger' | 'instagram'
   history: { role: 'user' | 'assistant'; text: string }[]
   state: ChatState
   tc: ToolContext
@@ -167,7 +169,10 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
   // ── 0. Hand-over triggers ──
   if (u.handoff) {
     const again = state.handoffReason ? 'Ажилтанд аль хэдийн мэдэгдсэн байгаа, удахгүй энэ чатаар хариулна. ' : ''
-    const text = again ? `${again}Нэмэлт мэдээлэл байвал энд бичээрэй.` : `${HANDOFF_TEXT[u.handoff as keyof typeof HANDOFF_TEXT] ?? HANDOFF_TEXT.customer_request}\n\n${DEMO_HANDOFF_NOTE}\nТэр хооронд бараа, үлдэгдлийн талаар надаас асууж болно.`
+    // The demo note points visitors of the website chat to the demo admin. A Messenger or Instagram
+    // customer is answered by staff in the Page inbox, which that admin cannot see.
+    const demoNote = input.channel === 'messenger' || input.channel === 'instagram' ? '\n' : `\n\n${DEMO_HANDOFF_NOTE}`
+    const text = again ? `${again}Нэмэлт мэдээлэл байвал энд бичээрэй.` : `${HANDOFF_TEXT[u.handoff as keyof typeof HANDOFF_TEXT] ?? HANDOFF_TEXT.customer_request}${demoNote}\nТэр хооронд бараа, үлдэгдлийн талаар надаас асууж болно.`
     return done({ ...empty, text, intent: 'handoff', handoff: u.handoff, events: [`handover:${u.handoff}`] })
   }
 

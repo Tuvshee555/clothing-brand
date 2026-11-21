@@ -351,6 +351,7 @@ export async function handleCustomerMessage(ctx: ServiceContext, raw: unknown, s
     try {
       turn = await runTurn({
         text: input.text,
+        channel: speaker.channel,
         history,
         state: (conversation.state ?? {}) as ChatState,
         tc,
