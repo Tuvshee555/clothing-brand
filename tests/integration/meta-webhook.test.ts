@@ -228,7 +228,7 @@ describe('comment triggers', () => {
     expect(sent).toHaveLength(1)
     expect(sent[0].url.pathname).toBe(`/v25.0/${PAGE}/messages`)
     expect(sent[0].body.recipient).toEqual({ comment_id: '10_101' })
-    expect(sent[0].body.message.text).toContain('Messenger')
+    expect(sent[0].body.message.text).toContain('мессежээр асуугаарай')
   })
 })
 
