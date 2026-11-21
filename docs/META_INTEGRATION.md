@@ -7,7 +7,10 @@ MANAN's assistant answers Facebook Messenger and Instagram Direct messages with 
 only Meta webhook, forwards MANAN's events here and lends the Page token. The MANAN route and
 the three `URSGAL_HUB_*` values were set on 2026-11-20, with `META_APP_ID` switched to the new
 app and comment replies on (`META_COMMENT_REPLIES_ENABLED=true`). Until the Page is assigned to
-the route at /holboh/admin, the hub's own assistant answers MANAN.
+the route at /holboh/admin, the hub's own assistant answers MANAN. The Page is assigned to the
+route (Messenger answered by this project, tested 2026-11-21). Instagram: @manan.studio.mn
+(17841431827921089) is a business account linked to the Page and in the Ursgal Digital business
+portfolio; `META_INSTAGRAM_ACCOUNT_ID` is set to it.
 
 ## Behind the Ursgal hub (current setup)
 
