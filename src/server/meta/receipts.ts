@@ -2,10 +2,10 @@
 // nothing is lost if processing dies, and a retried delivery (same event id)
 // is recognised instead of answered twice. Processing claims a receipt with a
 // short lease; a crashed attempt becomes claimable again when its lease ends.
-import { and, eq, inArray, lt, or, sql } from 'drizzle-orm'
+import { and, eq, gte, inArray, lt, or, sql } from 'drizzle-orm'
 import type { Database } from '@/server/db/client'
 import * as t from '@/server/db/schema'
-import { eventKey, type MetaEvent, type MetaPlatform } from './events'
+import { eventKey, MAX_TEXT, type MetaEvent, type MetaPlatform } from './events'
 
 export const MAX_ATTEMPTS = 5
 const LEASE_MS = 90_000
@@ -96,6 +96,38 @@ export async function rememberSent(db: Database, platform: MetaPlatform, account
 
 export async function wasSentByUs(db: Database, messageId: string): Promise<boolean> {
   const [row] = await db.select({ id: t.metaWebhookEvents.id }).from(t.metaWebhookEvents).where(eq(t.metaWebhookEvents.id, eventKey('sent', messageId))).limit(1)
+  return !!row
+}
+
+/** How long a sent text is remembered for recognising its echo. */
+export const SENT_TEXT_WINDOW_MS = 10 * 60 * 1000
+
+// An echo carries the text as Meta parsed it: trimmed, cut to MAX_TEXT. Whitespace is
+// collapsed too, so a changed line break can't make our own message look like a person's.
+const sentTextKey = (platform: MetaPlatform, accountId: string, text: string) =>
+  eventKey('sent-text', platform, accountId, text.trim().slice(0, MAX_TEXT).replace(/\s+/g, ' '))
+
+/**
+ * Remembers the text we just sent from this account. Instagram's echo of a private
+ * reply to a comment carries no metadata, no app id and a different message id, so
+ * its text is the only way to tell it from a staff member's reply.
+ */
+export async function rememberSentText(db: Database, platform: MetaPlatform, accountId: string, text: string, now = new Date()): Promise<void> {
+  if (!text.trim()) return
+  await db
+    .insert(t.metaWebhookEvents)
+    .values({ id: sentTextKey(platform, accountId, text), platform, kind: 'sent_text', accountId, payload: {}, status: 'done', outcome: 'sent', eventAt: now, processedAt: now })
+    .onConflictDoUpdate({ target: t.metaWebhookEvents.id, set: { eventAt: now, processedAt: now } })
+}
+
+/** True when this exact text was sent by us from this account in the last few minutes. */
+export async function wasTextSentByUs(db: Database, platform: MetaPlatform, accountId: string, text: string, now = new Date()): Promise<boolean> {
+  if (!text.trim()) return false
+  const [row] = await db
+    .select({ id: t.metaWebhookEvents.id })
+    .from(t.metaWebhookEvents)
+    .where(and(eq(t.metaWebhookEvents.id, sentTextKey(platform, accountId, text)), gte(t.metaWebhookEvents.eventAt, new Date(now.getTime() - SENT_TEXT_WINDOW_MS))))
+    .limit(1)
   return !!row
 }
 

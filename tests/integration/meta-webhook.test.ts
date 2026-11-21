@@ -79,6 +79,8 @@ const mid = () => `m_test_${Date.now()}_${seq++}`
 const dm = (sender: string, text: string, id = mid(), at = Date.now()) => ({ object: 'page', entry: [{ id: PAGE, time: at, messaging: [{ sender: { id: sender }, recipient: { id: PAGE }, timestamp: at, message: { mid: id, text } }] }] })
 const igDm = (sender: string, text: string) => ({ object: 'instagram', entry: [{ id: IG, time: Date.now(), messaging: [{ sender: { id: sender }, recipient: { id: IG }, timestamp: Date.now(), message: { mid: mid(), text } }] }] })
 const echo = (customer: string, text: string, extra: Record<string, unknown> = {}) => ({ object: 'page', entry: [{ id: PAGE, time: Date.now(), messaging: [{ sender: { id: PAGE }, recipient: { id: customer }, timestamp: Date.now(), message: { mid: mid(), text, is_echo: true, ...extra } }] }] })
+const igEcho = (customer: string, text: string) => ({ object: 'instagram', entry: [{ id: IG, time: Date.now(), messaging: [{ sender: { id: IG }, recipient: { id: customer }, timestamp: Date.now(), message: { mid: mid(), text, is_echo: true } }] }] })
+const igComment = (from: string, text: string, commentId: string) => ({ object: 'instagram', entry: [{ id: IG, time: Date.now(), changes: [{ field: 'comments', value: { id: commentId, text, from: { id: from, username: 'tester' }, media: { id: '17800000000000001' } } }] }] })
 const comment = (from: string, text: string, commentId: string) => ({ object: 'page', entry: [{ id: PAGE, time: Date.now(), changes: [{ field: 'feed', value: { item: 'comment', verb: 'add', comment_id: commentId, post_id: '10', message: text, from: { id: from }, created_time: Math.floor(Date.now() / 1000) } }] }] })
 
 async function conversationOf(platform: 'messenger' | 'instagram', sender: string, account = PAGE) {
@@ -195,6 +197,25 @@ describe('human handover', () => {
     await deliver(dm('3000000011', 'Сайн уу'))
     await deliver(echo('3000000011', sent[0].body.message.text, { metadata: BOT_METADATA }))
     expect((await conversationOf('messenger', '3000000011')).paused).toBe(false)
+  })
+
+  it("Instagram's echo of our private reply (no metadata, no app id, a new id) is still ours", async () => {
+    vi.stubEnv('META_COMMENT_REPLIES_ENABLED', 'true')
+    await deliver(igDm('4000000099', 'Сайн уу'))
+    expect(sent).toHaveLength(1)
+    await deliver(igComment('4000000099', 'Үнэ хэд вэ?', '17900000000000001'))
+    expect(sent).toHaveLength(2)
+    expect(sent[1].body.recipient).toEqual({ comment_id: '17900000000000001' })
+    await deliver(igEcho('4000000099', sent[1].body.message.text))
+    expect((await conversationOf('instagram', '4000000099', IG)).paused).toBe(false)
+    await deliver(igDm('4000000099', 'Хүргэлт хэд хоног вэ?'))
+    expect(sent).toHaveLength(3)
+  })
+
+  it('a person typing their own text on Instagram still takes the chat over', async () => {
+    await deliver(igDm('4000000098', 'Сайн уу'))
+    await deliver(igEcho('4000000098', 'Сайн байна уу, би Сараа байна.'))
+    expect((await conversationOf('instagram', '4000000098', IG)).paused).toBe(true)
   })
 
   it('Messenger chats are visible to staff but never to the public demo role', async () => {

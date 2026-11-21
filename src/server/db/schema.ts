@@ -756,7 +756,7 @@ export const metaWebhookEvents = store
       id: text().primaryKey(),
       /** messenger | instagram */
       platform: text().notNull(),
-      /** message | postback | echo | comment | sent */
+      /** message | postback | echo | comment | sent | sent_text */
       kind: text().notNull(),
       /** The Page or Instagram account id the event arrived for. */
       accountId: text().notNull(),

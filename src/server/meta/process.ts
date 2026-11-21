@@ -16,7 +16,7 @@ import type { Database } from '@/server/db/client'
 import type { MetaConfig } from './config'
 import { commentMatches, type MetaPlatform } from './events'
 import { BOT_METADATA, chunkText, quickReplies, sendMessage, type Chip, type Delivery } from './graph'
-import { claimReceipt, failReceipt, finishReceipt, rememberSent, REPLY_WINDOW_MS, saveProgress, staleReceipts, wasSentByUs, type ReceiptPayload } from './receipts'
+import { claimReceipt, failReceipt, finishReceipt, rememberSent, rememberSentText, REPLY_WINDOW_MS, saveProgress, staleReceipts, wasSentByUs, wasTextSentByUs, type ReceiptPayload } from './receipts'
 
 const COMMENT_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -54,6 +54,8 @@ async function deliver(db: Database, config: MetaConfig, receipt: ReceiptPayload
   let sent = receipt.sentChunks ?? 0
   for (let i = sent; i < parts.length; i++) {
     const last = i === parts.length - 1
+    // Remembered before sending: the echo can arrive before Meta's answer to the send.
+    await rememberSentText(db, platform, receipt.accountId, parts[i]).catch(() => undefined)
     const result: Delivery = await sendMessage(config, platform, recipient, { text: parts[i], ...(last && reply.suggestions?.length ? { quick_replies: quickReplies(reply.suggestions) } : {}) })
     if (result.status === 'uncertain') return { status: 'done', outcome: 'uncertain' }
     if (result.status === 'failed') return { status: 'retry', outcome: `send_failed:${result.code}` }
@@ -64,14 +66,18 @@ async function deliver(db: Database, config: MetaConfig, receipt: ReceiptPayload
   return { status: 'done', outcome: 'sent' }
 }
 
-async function ownEcho(db: Database, mid: string, metadata: string | null, appId: string | null): Promise<boolean> {
-  if (metadata === BOT_METADATA) return true
+type EchoEvent = { platform: MetaPlatform; accountId: string; mid: string; text: string; metadata: string | null; appId: string | null }
+
+async function ownEcho(db: Database, echo: EchoEvent): Promise<boolean> {
+  if (echo.metadata === BOT_METADATA) return true
   const ourApp = process.env.META_APP_ID?.trim()
-  if (ourApp && appId === ourApp) return true
-  if (await wasSentByUs(db, mid)) return true
+  if (ourApp && echo.appId === ourApp) return true
+  // Instagram's echo of a private reply has no metadata, no app id and a new id: only its text is ours.
+  const known = async () => (await wasSentByUs(db, echo.mid)) || (await wasTextSentByUs(db, echo.platform, echo.accountId, echo.text))
+  if (await known()) return true
   // The echo can overtake our own bookkeeping of the send by a moment.
   await new Promise((r) => setTimeout(r, 1_500))
-  return wasSentByUs(db, mid)
+  return known()
 }
 
 /** Handles one stored receipt. Never throws: failures are written to the receipt. */
@@ -93,7 +99,7 @@ export async function processReceipt(db: Database, config: MetaConfig, adapter: 
       return finishReceipt(db, key, 'done', result.outcome)
     }
     if (event.kind === 'echo') {
-      if (await ownEcho(db, event.mid, event.metadata, event.appId)) return finishReceipt(db, key, 'skipped', 'own_message')
+      if (await ownEcho(db, event)) return finishReceipt(db, key, 'skipped', 'own_message')
       await adapter.staffReplied(db, { platform: event.platform, accountId: event.accountId, customerId: event.recipientId, text: event.text, messageId: event.mid, at: new Date(event.at) })
       log('meta.staff_reply', { platform: event.platform })
       return finishReceipt(db, key, 'done', 'staff_took_over')
