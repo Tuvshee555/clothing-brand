@@ -20,13 +20,17 @@ export function normalizeConnectionString(url: string): string {
 }
 
 export function createPool(connectionString: string, overrides: PoolConfig = {}): Pool {
-  return new Pool({
+  const pool = new Pool({
     connectionString: normalizeConnectionString(connectionString),
     max: Number(process.env.DB_POOL_MAX ?? 5),
     idleTimeoutMillis: 20_000,
     connectionTimeoutMillis: 10_000,
     ...overrides,
   })
+  // The pool drops an idle connection the server closed (Neon suspending, a network
+  // blip). Without a listener, that 'error' event would crash the whole process.
+  pool.on('error', (error) => console.warn(JSON.stringify({ scope: 'db', code: 'db.idle_connection_closed', message: error.message.slice(0, 120) })))
+  return pool
 }
 
 export function createDb(pool: Pool) {

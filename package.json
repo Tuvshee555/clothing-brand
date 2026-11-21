@@ -27,6 +27,7 @@
     "assistant:smoke": "tsx --conditions=react-server scripts/assistant-smoke.ts"
   },
   "dependencies": {
+    "@vercel/functions": "^3.11.3",
     "drizzle-orm": "^0.45.4",
     "lucide-react": "^1.61.0",
     "next": "16.4.3",

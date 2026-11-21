@@ -1,4 +1,5 @@
 import 'server-only'
+import { attachDatabasePool } from '@vercel/functions'
 import type { Pool } from 'pg'
 import { createDb, createPool, type Database } from './client'
 
@@ -10,7 +11,11 @@ function getPool(): Pool {
   if (!globalForDb.__storePool) {
     const url = process.env.DATABASE_URL
     if (!url) throw new Error('DATABASE_URL is not set')
-    globalForDb.__storePool = createPool(url)
+    // On Vercel a paused instance can wake up holding connections Neon has already
+    // closed ("Connection terminated unexpectedly"). Short idle times plus Vercel's
+    // helper close idle connections before the instance is paused.
+    globalForDb.__storePool = createPool(url, { idleTimeoutMillis: 5_000 })
+    attachDatabasePool(globalForDb.__storePool)
   }
   return globalForDb.__storePool
 }
