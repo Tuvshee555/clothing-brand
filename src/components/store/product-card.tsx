@@ -67,8 +67,9 @@ export function ProductCard({
       </Link>
       <WishlistButton slug={product.slug} name={product.name} className="absolute right-2.5 top-2.5" />
       <div className="mt-3 space-y-1 px-0.5">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="text-[13.5px] leading-snug text-ink">
+        {/* flex-wrap: on a half-width phone card a price range drops under the name instead of overflowing. */}
+        <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-0.5">
+          <h3 className="min-w-0 text-[13.5px] leading-snug text-ink">
             <Link href={href} className="link-underline">
               {product.name}
             </Link>

@@ -158,7 +158,7 @@ export function ProductView({
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(360px,1fr)] lg:gap-14">
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1.45fr)_minmax(360px,1fr)] lg:gap-14">
       {/* Gallery */}
       <div>
         <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory overflow-x-auto sm:mx-0 lg:hidden">
@@ -299,8 +299,9 @@ export function ProductView({
               <Plus className="h-4 w-4" />
             </button>
           </div>
-          <Button size="lg" className="h-13 flex-1" onClick={add} disabled={!size || !sellable || pending}>
-            {pending ? 'Нэмж байна…' : !size ? 'Хэмжээ сонгоно уу' : sellable ? 'Сагсанд нэмэх' : 'Дууссан'}
+          {/* min-w-0 + truncate: the button may shrink on a 360px phone instead of widening the page. */}
+          <Button size="lg" className="h-13 min-w-0 flex-1" onClick={add} disabled={!size || !sellable || pending}>
+            <span className="truncate">{pending ? 'Нэмж байна…' : !size ? 'Хэмжээ сонгох' : sellable ? 'Сагсанд нэмэх' : 'Дууссан'}</span>
           </Button>
         </div>
         {error && <Alert tone="danger" className="mt-4">{error}</Alert>}
