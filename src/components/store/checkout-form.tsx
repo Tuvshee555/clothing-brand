@@ -62,7 +62,7 @@ export function CheckoutForm({ lines, subtotal, shipping }: { lines: CartLine[];
         e.preventDefault()
         submit()
       }}
-      className="grid gap-10 lg:grid-cols-[1fr_400px]"
+      className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_400px]"
     >
       <div className="space-y-10">
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 border border-stone-200 bg-white px-4 py-3 text-[13px] text-stone-600">

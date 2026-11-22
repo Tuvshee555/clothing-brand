@@ -25,7 +25,7 @@ async function CartBody() {
   const ub = content.shipping.find((s) => s.region === 'ub' && s.freeThreshold)
   const remaining = ub?.freeThreshold ? Math.max(0, ub.freeThreshold - cart.subtotal) : null
   return (
-    <div className="grid gap-10 lg:grid-cols-[1fr_380px]">
+    <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_380px]">
       <CartLines lines={cart.lines} />
       <aside className="h-fit border border-stone-200 bg-white p-6 lg:sticky lg:top-24">
         <h2 className="eyebrow mb-5">Захиалгын дүн</h2>

@@ -54,7 +54,7 @@ async function OrderBody({ params, searchParams }: Props) {
       : null
 
   return (
-    <div className="grid gap-10 lg:grid-cols-[1fr_400px]">
+    <div className="grid grid-cols-1 gap-10 lg:grid-cols-[minmax(0,1fr)_400px]">
       <div className="space-y-10">
         <div>
           <p className="eyebrow text-stone-600">Захиалга {order.number}</p>

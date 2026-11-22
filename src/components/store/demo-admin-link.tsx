@@ -13,7 +13,8 @@ export function DemoAdminButton({ next, label = 'Удирдлагын самба
     <div>
       <button
         type="button"
-        className={buttonClass(variant, 'md')}
+        // max-w-full + a wrapping label: on a phone the long label takes two lines instead of widening the page.
+        className={buttonClass(variant, 'md', 'max-w-full')}
         disabled={pending}
         onClick={() =>
           start(async () => {
@@ -22,7 +23,7 @@ export function DemoAdminButton({ next, label = 'Удирдлагын самба
           })
         }
       >
-        {pending ? 'Нээж байна…' : label} <ArrowUpRight className="h-4 w-4" />
+        <span className="whitespace-normal text-center leading-tight">{pending ? 'Нээж байна…' : label}</span> <ArrowUpRight className="h-4 w-4 shrink-0" />
       </button>
       {error && <p className="mt-2 text-[12.5px] text-danger">{error}</p>}
     </div>
