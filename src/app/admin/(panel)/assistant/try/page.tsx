@@ -26,7 +26,7 @@ export default async function TryChatbotPage() {
   return (
     <>
       <PageHeader title="Чатбот турших" description="Дэлгүүрийн туслахтай яг ижил хөдөлгүүр, ижил сан. Туршилтын захиалга бодитоор үүсэхгүй, үлдэгдэл, сагс өөрчлөгдөхгүй, яриа жагсаалтад орохгүй." />
-      <div className="grid gap-4 xl:grid-cols-[1.4fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
         <TestChat initial={initial} />
         <Card title="Юу туршиж болох вэ">
           <div className="mb-3 flex flex-wrap items-center gap-2 text-[13px]">

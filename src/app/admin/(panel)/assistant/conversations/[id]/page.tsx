@@ -52,7 +52,7 @@ export default async function ConversationPage({ params }: { params: Promise<{ i
         }
         description={`Эхэлсэн: ${dateTime.format(c.createdAt)} · ${c.messageCount} мессеж${c.paused && data.takenOverByName ? ` · ${data.takenOverByName} хариулж байна` : ''}`}
       />
-      <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.6fr_1fr]">
         <Card title="Яриа">
           <Transcript messages={data.messages} />
         </Card>

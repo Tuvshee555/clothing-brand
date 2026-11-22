@@ -70,7 +70,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <Stat label="Дундаж захиалга" value={formatMoney(d.totals.orders - d.totals.cancelled > 0 ? Math.round(d.totals.revenue / (d.totals.orders - d.totals.cancelled)) : 0)} hint="Цуцлагдсаныг оруулаагүй" />
       </div>
 
-      <div className="mt-6 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+      <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-[1.6fr_1fr]">
         <Card title="Сүүлийн 14 хоног" actions={<span className="text-[12px] text-stone-500">Захиалгын дүн, өдрөөр</span>}>
           <DailyBars days={14} data={d.daily} today={d.today} />
         </Card>
@@ -92,7 +92,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         </Card>
       </div>
 
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1.6fr_1fr]">
+      <div className="mt-4 grid grid-cols-1 gap-4 xl:grid-cols-[1.6fr_1fr]">
         <Card title="Сүүлийн захиалга" actions={<Link href="/admin/orders" className="text-[12.5px] text-stone-600 hover:text-ink">Бүгд →</Link>} padded={false}>
           <ul className="divide-y divide-stone-100">
             {d.recentOrders.map((o) => (

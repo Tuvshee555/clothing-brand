@@ -56,7 +56,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
           </>
         }
       />
-      <div className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.5fr_1fr]">
         <div className="space-y-4">
           <Card title="Явц">
             <OrderProgress status={status} />

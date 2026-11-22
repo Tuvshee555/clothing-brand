@@ -29,7 +29,7 @@ export default async function CustomerPage({ params }: { params: Promise<{ id: s
         }
         description={`Анх бүртгэгдсэн: ${dateTime.format(customer.createdAt)}`}
       />
-      <div className="grid gap-4 lg:grid-cols-[1fr_2fr]">
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_2fr]">
         <div className="space-y-4">
           <Card title="Холбоо барих">
             <p className="text-[13.5px]">{formatPhone(customer.phone)}</p>
