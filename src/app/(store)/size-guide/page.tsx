@@ -4,7 +4,7 @@ import { getStoreContent } from '@/server/queries/settings'
 
 export const metadata: Metadata = {
   title: 'Хэмжээний хүснэгт',
-  description: 'Цамц, свитер, пальто, өмд, жинс, гутлын хэмжээг сантиметрээр.',
+  description: 'Цамц, свитер, пальто, өмд, жинсний хэмжээг сантиметрээр.',
   alternates: { canonical: '/size-guide' },
 }
 
@@ -21,10 +21,6 @@ export default async function SizeGuidePage() {
       <section className="mt-12">
         <h2 className="eyebrow mb-4">Доод хувцас — өмд, жинс</h2>
         <SizeGuideTable guide={sizeGuide} kind="bottoms" />
-      </section>
-      <section className="mt-12">
-        <h2 className="eyebrow mb-4">Гутал — EU хэмжээ</h2>
-        <SizeGuideTable guide={sizeGuide} kind="shoes" />
       </section>
       <section className="mt-12 border border-stone-200 bg-white p-6 text-[14px] leading-relaxed">
         <h2 className="mb-2 font-medium">Хэрхэн хэмжих вэ</h2>

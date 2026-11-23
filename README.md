@@ -18,7 +18,7 @@ Everything customer-facing is in Mongolian; prices are integer tögrög (`219,00
 
 | Area | Status |
 |---|---|
-| Catalogue, 35 products (clothes and shoes), 208 colour × size variants, images | **Real** — read from Postgres on every page |
+| Catalogue, 30 products, 168 colour × size variants, images | **Real** — read from Postgres on every page |
 | Stock per variant, low-stock / sold-out states | **Real** — live, enforced by the database (`stock >= 0`) |
 | Cart (per browser, no account) | **Real** — stored in Postgres, re-priced from the database |
 | Checkout, order creation, stock reservation | **Real** — one transaction with row locks; cannot oversell |
