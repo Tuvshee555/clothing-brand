@@ -50,6 +50,14 @@ export async function Footer() {
           <ul className="space-y-2.5 text-[13.5px] text-white/85">
             <li>{content.info.contactEmail}</li>
             <li className="text-white/60">{content.info.contactHours}</li>
+            <li className="flex gap-5 pt-1">
+              <a href={BRAND.facebook} target="_blank" rel="noopener" className={`${link} inline-flex items-center gap-1`}>
+                Facebook <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+              <a href={BRAND.instagram} target="_blank" rel="noopener" className={`${link} inline-flex items-center gap-1`}>
+                Instagram <ArrowUpRight className="h-3.5 w-3.5" aria-hidden="true" />
+              </a>
+            </li>
             <li><Link href="/about" className={link}>Брэндийн тухай</Link></li>
             <li><Link href="/credits" className={link}>Зургийн эх сурвалж</Link></li>
             <li><Link href="/help/privacy" className={link}>Нууцлал</Link></li>

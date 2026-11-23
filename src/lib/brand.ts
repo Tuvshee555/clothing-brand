@@ -14,8 +14,11 @@ export const BRAND = {
     'MANAN — Улаанбаатарын хотын хэмнэлд зориулсан, чимээгүй тансаг өдөр тутмын хувцасны зохиомол брэнд. Ursgal Digital-ын портфолио демо.',
   /** `.example` is a reserved domain (RFC 2606), so this can never reach a real inbox. */
   email: 'hello@manan.example',
+  /** The demo brand's own Pages (the shopping assistant answers there too). */
+  facebook: 'https://www.facebook.com/manan.studio.mn',
+  instagram: 'https://www.instagram.com/manan.studio.mn',
   /** Where the "back to portfolio" link points. */
-  portfolioUrl: process.env.NEXT_PUBLIC_PORTFOLIO_URL ?? 'https://ursgal-digital.vercel.app/portfolio/fashion',
+  portfolioUrl: process.env.NEXT_PUBLIC_PORTFOLIO_URL ?? 'https://www.ursgaldigital.com/portfolio/fashion',
   agencyName: 'Ursgal Digital',
 } as const
 
