@@ -218,6 +218,16 @@ describe('shopping help', () => {
     for (const card of r!.cards!) expect(tc.catalog.find((p) => p.slug === card.slug)?.tags).toContain('winter')
   })
 
+  it('shoes: sizes from stock, a sold-out size, and a foot length read against the shoe chart', async () => {
+    const r = await startChat(db).say('40 размерын пүүз байна уу')
+    expect(r?.text).toMatch(/Өдөр тутмын пүүз/)
+    expect(r?.text).toMatch(/\/ 40: \d+ ширхэг/)
+    const sold = await startChat(db).say('Илгэн ботинк 38 размер байна уу?')
+    expect(sold?.text).toMatch(/38 дууссан/)
+    const fit = await startChat(db).say('Хөлийн урт 25.5 см бол пүүз ямар размер авах вэ?')
+    expect(fit?.text).toMatch(/25\.5 см бол манай хүснэгтээр 40 хэмжээ/)
+  })
+
   it('admits what is not in the catalogue instead of inventing', async () => {
     const chat = startChat(db)
     const r = await chat.say('Танайд хүүхдийн гутал байна уу?')

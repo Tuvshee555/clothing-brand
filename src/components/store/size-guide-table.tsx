@@ -1,7 +1,8 @@
 import type { SizeGuide } from '@/lib/settings'
 
-export function SizeGuideTable({ guide, kind }: { guide: SizeGuide; kind: 'tops' | 'bottoms' }) {
+export function SizeGuideTable({ guide, kind }: { guide: SizeGuide; kind: 'tops' | 'bottoms' | 'shoes' }) {
   const table = guide[kind]
+  if (!table) return null
   return (
     <div className="overflow-x-auto">
       <table className="w-full min-w-[320px] border-collapse text-left text-[12.5px]">

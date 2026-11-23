@@ -23,12 +23,17 @@ const TEMPLATE = 'it_template'
 
 export default async function setup(project: TestProject) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'manan-it-'))
+  // Run as root (a container), Postgres starts as a `postgres` user: it must reach this folder
+  // and own the data folder inside it.
+  const asRoot = process.getuid?.() === 0
+  if (asRoot) fs.chmodSync(dir, 0o755)
   const server = new EmbeddedPostgres({
     databaseDir: path.join(dir, 'data'),
     port: PORT,
     user: 'postgres',
     password: 'postgres',
     persistent: false,
+    createPostgresUser: asRoot,
     initdbFlags: ['--encoding=UTF8', '--locale=C'],
     postgresFlags: ['-c', 'timezone=UTC', '-c', 'fsync=off', '-c', 'log_min_messages=warning'],
     onLog: () => {},

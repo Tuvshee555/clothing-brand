@@ -5,7 +5,7 @@ import type { Policies, SizeGuide, StoreInfo } from '@/lib/settings'
 import { db } from '@/server/db'
 import type { Database } from '@/server/db/client'
 import * as t from '@/server/db/schema'
-import { DEFAULT_POLICIES, DEFAULT_SIZE_GUIDE, DEFAULT_STORE_INFO } from '@/server/seed/content'
+import { DEFAULT_POLICIES, DEFAULT_SIZE_GUIDE, DEFAULT_STORE_INFO, withShoeChart } from '@/server/seed/content'
 import { SETTINGS_TAG } from './catalog'
 
 async function readSetting<T>(database: Database, key: string, fallback: T): Promise<T> {
@@ -43,7 +43,7 @@ export async function getStoreContent() {
   return {
     info,
     policies,
-    sizeGuide,
+    sizeGuide: withShoeChart(sizeGuide),
     shipping: shipping.map((s) => ({
       code: s.code,
       name: s.name,

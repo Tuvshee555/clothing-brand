@@ -34,5 +34,7 @@ export interface SizeRow {
 export interface SizeGuide {
   tops: { columns: string[]; rows: SizeRow[] }
   bottoms: { columns: string[]; rows: SizeRow[] }
+  /** EU shoe sizes by foot length. Guides saved before shoes were sold have none; readers add the default. */
+  shoes?: { columns: string[]; rows: SizeRow[] }
   note: string
 }

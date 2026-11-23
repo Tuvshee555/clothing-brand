@@ -334,6 +334,7 @@ const BODY_MEASURES: { column: string; words: string }[] = [
   { column: 'Цээж', words: 'цээж|\\bchest|\\bbust' },
   { column: 'Бүсэлхий', words: 'бүсэлхий|бэлхүүс|\\bwaist' },
   { column: 'Ташаа', words: 'ташаа|\\bhips?\\b' },
+  { column: 'Хөлийн урт', words: 'хөл|\\bfoot|\\bfeet' },
 ]
 
 /**
@@ -344,10 +345,11 @@ export function bodyMeasure(text: string, columns: string[]): { column: string; 
   for (const m of BODY_MEASURES) {
     const column = columns.find((c) => c.startsWith(m.column))
     if (!column) continue
-    const after = new RegExp(`(?:${m.words})\\S*\\s*(?:[^\\s\\d,.?!]+\\s+){0,2}(\\d{2,3})(?:[.,]\\d)?\\s*(?:см|cm)?(?![\\d.,]*\\s*(?:кг|kg))`, 'iu')
-    const before = new RegExp(`(\\d{2,3})(?:[.,]\\d)?\\s*(?:см|cm)?\\s*(?:${m.words})`, 'iu')
+    // A decimal counts ("25.5 см хөлтэй"): shoe sizes are about 0.6 cm apart.
+    const after = new RegExp(`(?:${m.words})\\S*\\s*(?:[^\\s\\d,.?!]+\\s+){0,2}(\\d{2,3}(?:[.,]\\d)?)\\s*(?:см|cm)?(?![\\d.,]*\\s*(?:кг|kg))`, 'iu')
+    const before = new RegExp(`(\\d{2,3}(?:[.,]\\d)?)\\s*(?:см|cm)?\\s*(?:${m.words})`, 'iu')
     const hit = after.exec(text) ?? before.exec(text)
-    if (hit) return { column, cm: Number(hit[1]) }
+    if (hit) return { column, cm: Number(hit[1].replace(',', '.')) }
   }
   return null
 }
@@ -369,9 +371,14 @@ function variantsForChartSize(p: CatalogProduct, rowSize: string): CatalogVarian
  * measurement the customer gives (chest, waist, hips) is read against that chart.
  */
 export function sizeAdviceAnswer(tc: ToolContext, p: CatalogProduct | null, text = ''): Answer {
-  const tops = tc.sizeGuide.tops, bottoms = tc.sizeGuide.bottoms
+  const tops = tc.sizeGuide.tops, bottoms = tc.sizeGuide.bottoms, shoes = tc.sizeGuide.shoes
   const measureOf = (g: typeof tops) => bodyMeasure(text, g.columns)
-  const guide = p ? (BOTTOM_CATEGORIES.has(p.categorySlug) ? bottoms : tops) : (!measureOf(tops) && measureOf(bottoms) ? bottoms : tops)
+  const guide = p
+    ? p.categorySlug === 'shoes' && shoes ? shoes : BOTTOM_CATEGORIES.has(p.categorySlug) ? bottoms : tops
+    : shoes && measureOf(shoes) ? shoes : !measureOf(tops) && measureOf(bottoms) ? bottoms : tops
+  const forShoes = guide === shoes
+  // The owner's note is about how clothes fit; for shoes the product's own fit line says it.
+  const note = forShoes ? '' : tc.sizeGuide.note
   const measure = text ? measureOf(guide) : null
   const oneSize = p && p.sizes.length === 1
   const lines: string[] = []
@@ -394,17 +401,21 @@ export function sizeAdviceAnswer(tc: ToolContext, p: CatalogProduct | null, text
       }
     } else if (rows.length > 1) {
       lines.push(`${label} ${measure.cm} см нь ${rows.map((row) => `${row.size} (${row[measure.column]} см)`).join(' ба ')} хэмжээний заагт байна.`)
-      if (tc.sizeGuide.note) lines.push(tc.sizeGuide.note)
+      if (note) lines.push(note)
     } else {
       lines.push(`${label} ${measure.cm} см манай хэмжээний хүснэгтэд (${guide.rows.map((row) => row.size).join(', ')}) багтахгүй байна — ажилтнаас тодруулаарай.`)
     }
     lines.push('Бүтэн хүснэгт: [хэмжээний хүснэгт](/size-guide). Эргэлзвэл «ажилтантай холбогдох» гэж бичээрэй — ажилтан тусална.')
   } else {
     if (p) lines.push(`${quote(p)}${p.fit ? ` — хэлбэр: ${p.fit}.` : '.'}`)
-    lines.push('Өндөр, жингээр хэмжээ сонгох баталгаатай дүрэм манайд байхгүй тул таамаглаж хэлэхгүй. Биеийн хэмжээгээ хүснэгттэй харьцуулаарай:')
+    lines.push(
+      forShoes
+        ? 'Хөлийнхөө уртыг өсгийнөөс хамгийн урт хурууны үзүүр хүртэл хэмжээд хүснэгттэй харьцуулаарай:'
+        : 'Өндөр, жингээр хэмжээ сонгох баталгаатай дүрэм манайд байхгүй тул таамаглаж хэлэхгүй. Биеийн хэмжээгээ хүснэгттэй харьцуулаарай:',
+    )
     lines.push(`${['Хэмжээ', ...guide.columns].join(' · ')}`)
     for (const row of guide.rows) lines.push(`- ${row.size}: ${guide.columns.map((c) => row[c]).join(' · ')}`)
-    if (tc.sizeGuide.note) lines.push(tc.sizeGuide.note)
+    if (note) lines.push(note)
     lines.push('Бүтэн хүснэгт: [хэмжээний хүснэгт](/size-guide). Эргэлзвэл «ажилтантай холбогдох» гэж бичээрэй — ажилтан тусална.')
   }
   return {
@@ -451,8 +462,10 @@ export function listAnswer(tc: ToolContext, products: CatalogProduct[], heading:
   })
   const total = more?.total ?? products.length
   const tail = total > shown.length ? `\n…нийт ${total}. Бүгдийг [дэлгүүрээс](${more?.href ?? '/shop'}) үзээрэй.` : ''
+  // A list of shoes gets a shoe size in the example ("40"), clothes a letter size ("L").
+  const exampleSize = shown.length > 0 && shown.every((p) => p.categorySlug === 'shoes') ? '40' : 'L'
   return {
-    text: `${heading}\n${lines.join('\n')}${tail}\nДугаараар нь сонгоод асуугаарай (жишээ: «2 L размер байгаа юу?»).`,
+    text: `${heading}\n${lines.join('\n')}${tail}\nДугаараар нь сонгоод асуугаарай (жишээ: «2 ${exampleSize} размер байгаа юу?»).`,
     productIds: shown.map((p) => p.id),
     actions: [],
     suggestions: shown[0] ? [`${shown[0].name} үнэ хэд вэ?`, 'Эдгээрийн ялгаа юу вэ?'] : [],

@@ -89,6 +89,8 @@ export interface Understood {
   browse: boolean
   tags: string[]
   audience: 'women' | 'men' | null
+  /** "хүүхдийн гутал": children's clothes or shoes, which the store does not sell. */
+  kids: boolean
   garments: { word: string; categories: string[] }[]
   numbered: { index: number } | null
   orderNumber: string | null
@@ -217,6 +219,8 @@ export function understand(raw: string): Understood {
       : /(?:эрэгтэй|эрчүүд|залуу|\bmen\b|male|\bhim\b)/iu.test(probe)
         ? 'men'
         : null,
+    // Only "children's …" itself; "хүүхдэдээ бэлэг" (a gift for my child) still searches the catalogue.
+    kids: /(?:хүүхдийн|нярайн|huuhdiin|huuhdin|\bkids?\b|\bchildren'?s\b|\bbaby\b)/iu.test(`${text} ${norm}`),
     garments: garmentMentions(norm),
     numbered: parseNumberedChoice(text) ?? parseNumberedChoice(norm),
     orderNumber: orderNumber ? `MN-${orderNumber}` : null,

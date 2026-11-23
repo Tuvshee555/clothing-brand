@@ -81,3 +81,8 @@ The photos are cropped, resized and re-encoded as WebP by `npm run images:build`
 | Laura BC | [Blond Woman In Black Sweater Closes Her Eyes](https://burst.shopify.com/photos/blond-woman-in-black-sweater-closes-her-eyes) | Burst |
 | Tenille K Campbell | [Portrait Of Woman In Grey Cardigan](https://burst.shopify.com/photos/portrait-of-woman-in-grey-cardigan) | Burst |
 | Fernanda Publio | [Woman Draped In Knit Scarf](https://burst.shopify.com/photos/woman-draped-in-knit-scarf) | Burst |
+| Sarah Pflug | [Fashionable Black And White Sneakers](https://burst.shopify.com/photos/fashionable-black-and-white-sneakers) | Burst |
+| Shopify Partners | [Black Sneakers With White Sole](https://burst.shopify.com/photos/black-sneakers-with-shite-sole) | Burst |
+| Henry Geddes | [Loafers Leaning Along White Wall](https://burst.shopify.com/photos/loafers-leaning-along-white-wall) | Burst |
+| Matthew Henry | [Suede Boots Fashion](https://burst.shopify.com/photos/suede-boots-fashion) | Burst |
+| Matthew Henry | [Boots In Autumn Leaves](https://burst.shopify.com/photos/boots-in-autumn-leaves) | Burst |

@@ -116,8 +116,19 @@ describe('clothing colours and sizes', () => {
     expect(sizes('har hoodie xl bga yu')).toEqual(['XL'])
     expect(sizes('2XL байна уу')).toEqual(['XXL'])
     expect(sizes('30 размер бий юу')).toEqual(['30'])
+    // EU shoe sizes next to a size word, Cyrillic or Latin.
+    expect(sizes('40 размерын гутал байна уу')).toEqual(['40'])
+    expect(sizes('puuz 43 razmer bga yu')).toEqual(['43'])
     // A lowercase "l" in a long Latin sentence is often the particle "л", not a size.
     expect(sizes('ene l bol sain baraa shig bn daa')).toEqual([])
+  })
+
+  it('shoe words: «гутал» means the whole category, a kind of shoe goes by name', () => {
+    const garments = (s: string) => understand(s).garments
+    expect(garments('Гутал байна уу?')).toEqual([{ word: 'гутал', categories: ['shoes'] }])
+    expect(garments('gutal bga yu')).toEqual([{ word: 'гутал', categories: ['shoes'] }])
+    expect(garments('puuz hed ve')).toEqual([{ word: 'пүүз', categories: [] }])
+    expect(garments('Арьсан ботинк 42 байгаа юу')).toEqual([{ word: 'ботинк', categories: [] }])
   })
 })
 

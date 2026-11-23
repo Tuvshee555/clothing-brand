@@ -25,6 +25,10 @@ export const FASHION_ALIASES: Alias[] = [
   [/\b(?:oroolt|orooltoo|scarf)\b/gi, 'ороолт'],
   [/\b(?:hantaaz|vest)\b/gi, 'хантааз'],
   [/\b(?:hudi|hudee|hoodi)\b/gi, 'hoodie'],
+  [/\b(?:gutal|gutla|gutlaa|gutliin|gutlyn|shoes?|boots?|footwear)\b/gi, 'гутал'],
+  [/\b(?:puuz|puuzee|puuznii|puuziig|sneakers?|trainers?)\b/gi, 'пүүз'],
+  [/\b(?:botink|botinok|botinka)\b/gi, 'ботинк'],
+  [/\b(?:lofer|loafers?)\b/gi, 'лофер'],
   // materials
   [/\b(?:noolur|nooluur|nooluuran|cashmere)\b/gi, 'ноолуур'],
   [/\b(?:noos|noosnii|noosun|wool)\b/gi, 'ноос'],
@@ -199,8 +203,8 @@ export function parseSizes(raw: string, normalized: string): string[] {
   if (hasSizeWord) {
     for (const m of raw.matchAll(/(?<![\p{L}\d])(хс|ххл|2хл|хл|с|м|л)(?![\p{L}\d])/giu)) add(CYRILLIC_SIZES[m[1].toLowerCase()])
   }
-  // Waist / belt sizes: "30 размер", "размер 28", "32-ын жинс" next to a size word.
-  if (hasSizeWord) for (const m of normalized.matchAll(/(?<!\d)(2[6-9]|3[0-8]|80|85|90|95|100|105|110)(?!\d)/g)) add(m[1])
+  // Waist / shoe / belt sizes: "30 размер", "размер 28", "40 размерын гутал" next to a size word.
+  if (hasSizeWord) for (const m of normalized.matchAll(/(?<!\d)(2[6-9]|3\d|4[0-6]|80|85|90|95|100|105|110)(?!\d)/g)) add(m[1])
   if (/(?:нэг\s+хэмжээ|one\s+size|ганц\s+хэмжээ)/iu.test(normalized)) add('ONE SIZE')
   return found
 }
@@ -227,6 +231,11 @@ export const GARMENT_GROUPS: { words: string[]; categories: string[] }[] = [
   { words: ['свитер', 'кардиган', 'сүлжмэл'], categories: ['knitwear'] },
   { words: ['хүрэм', 'хүрмийг', 'пальто', 'пуховик', 'хантааз', 'куртка'], categories: ['outerwear'] },
   { words: ['малгай', 'кепи', 'бейсболк', 'ороолт', 'цүнх', 'бүс'], categories: ['accessories'] },
+  { words: ['гутал', 'гутлын', 'гутлаа', 'гутлыг'], categories: ['shoes'] },
+  // A kind of shoe is matched by product name, so «пүүз» does not list the boots.
+  { words: ['пүүз', 'пүүзний', 'пүүзээ', 'пүүзийг'], categories: [] },
+  { words: ['ботинк', 'ботинкийг'], categories: [] },
+  { words: ['лофер', 'лоферыг'], categories: [] },
 ]
 
 /** Garment words in a normalised message, with the categories they may mean. */

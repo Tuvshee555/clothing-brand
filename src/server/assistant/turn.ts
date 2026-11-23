@@ -195,7 +195,8 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
   const searching = u.browse || u.catalogQuestion || u.maxPrice !== null || u.minPrice !== null || u.cheapest || u.priciest
   let product: CatalogProduct | null = picked
   let ambiguous: CatalogProduct[] = []
-  if (!product && refs.named.length === 1 && !(searching && !refs.strong)) product = refs.named[0]
+  // A name match of another type is not the product ("хөлийн урт … пүүз" is not «Урт арьсан пальто»).
+  if (!product && refs.named.length === 1 && !(searching && !refs.strong) && fitsGarment(refs.named[0], u)) product = refs.named[0]
   else if (!product && refs.named.length > 1) {
     const narrowed = refs.named.filter((p) => variantFits(p) && fitsGarment(p, u))
     if (narrowed.length === 1 && !searching) product = narrowed[0]
@@ -309,6 +310,9 @@ export async function runTurn(input: TurnInput): Promise<TurnOutput> {
   }
 
   // ── 5. Product answers ──
+  // There is no children's line: "хүүхдийн гутал" is not in the catalogue, though a product is
+  // named "…гутал". Say so instead of offering the adult one.
+  if (u.kids) return done({ ...fallbackAnswer(tc, u, focusProduct, state), intent: 'fallback' })
   const withPolicy = (a: Answer): Answer => (u.policy && u.policy !== 'size_guide' ? { ...a, text: `${a.text}\n\n${policyAnswer(tc, u.policy).text}` } : a)
   if (product && !searching) {
     const t = q.topics

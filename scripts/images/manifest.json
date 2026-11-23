@@ -673,5 +673,45 @@
   "title": "Man In Tan Hoodie Looks Up At Camera",
   "author": "Jeremy Marasigan",
   "license": "burst"
+ },
+ {
+  "key": "sneaker-bw-1",
+  "slug": "fashionable-black-and-white-sneakers",
+  "kind": "catalog",
+  "title": "Fashionable Black And White Sneakers",
+  "author": "Sarah Pflug",
+  "license": "burst"
+ },
+ {
+  "key": "runner-black-1",
+  "slug": "black-sneakers-with-shite-sole",
+  "kind": "catalog",
+  "title": "Black Sneakers With White Sole",
+  "author": "Shopify Partners",
+  "license": "burst"
+ },
+ {
+  "key": "loafer-brown-1",
+  "slug": "loafers-leaning-along-white-wall",
+  "kind": "catalog",
+  "title": "Loafers Leaning Along White Wall",
+  "author": "Henry Geddes",
+  "license": "burst"
+ },
+ {
+  "key": "boot-suede-black-1",
+  "slug": "suede-boots-fashion",
+  "kind": "catalog",
+  "title": "Suede Boots Fashion",
+  "author": "Matthew Henry",
+  "license": "burst"
+ },
+ {
+  "key": "boot-lace-brown-1",
+  "slug": "boots-in-autumn-leaves",
+  "kind": "catalog",
+  "title": "Boots In Autumn Leaves",
+  "author": "Matthew Henry",
+  "license": "burst"
  }
 ]

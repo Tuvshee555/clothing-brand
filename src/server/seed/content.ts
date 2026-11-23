@@ -92,7 +92,27 @@ export const DEFAULT_SIZE_GUIDE: SizeGuide = {
       { size: '36 / XXL', 'Бүсэлхий (см)': '91–94', 'Ташаа (см)': '110–113', 'Хөлийн урт (см)': '84' },
     ],
   },
+  shoes: {
+    columns: ['Хөлийн урт (см)'],
+    rows: [
+      { size: '36', 'Хөлийн урт (см)': '22.6–23.2' },
+      { size: '37', 'Хөлийн урт (см)': '23.3–23.9' },
+      { size: '38', 'Хөлийн урт (см)': '24.0–24.5' },
+      { size: '39', 'Хөлийн урт (см)': '24.6–25.2' },
+      { size: '40', 'Хөлийн урт (см)': '25.3–25.9' },
+      { size: '41', 'Хөлийн урт (см)': '26.0–26.5' },
+      { size: '42', 'Хөлийн урт (см)': '26.6–27.2' },
+      { size: '43', 'Хөлийн урт (см)': '27.3–27.9' },
+      { size: '44', 'Хөлийн урт (см)': '28.0–28.5' },
+      { size: '45', 'Хөлийн урт (см)': '28.6–29.2' },
+    ],
+  },
   note: 'Хэмжээ хоёрын дунд байвал «Чөлөөтэй» хэлбэрийн бараанд жижиг хэмжээг, «Биед таарсан» хэлбэрийн бараанд том хэмжээг сонгохыг зөвлөж байна.',
+}
+
+/** A stored size guide with the shoe chart filled in when it predates shoes. */
+export function withShoeChart(guide: SizeGuide): SizeGuide {
+  return guide.shoes ? guide : { ...guide, shoes: DEFAULT_SIZE_GUIDE.shoes }
 }
 
 export const DEFAULT_SHIPPING_METHODS = [

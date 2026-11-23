@@ -18,7 +18,7 @@ Everything customer-facing is in Mongolian; prices are integer tögrög (`219,00
 
 | Area | Status |
 |---|---|
-| Catalogue, 30 products, 168 colour × size variants, images | **Real** — read from Postgres on every page |
+| Catalogue, 35 products (clothes and shoes), 208 colour × size variants, images | **Real** — read from Postgres on every page |
 | Stock per variant, low-stock / sold-out states | **Real** — live, enforced by the database (`stock >= 0`) |
 | Cart (per browser, no account) | **Real** — stored in Postgres, re-priced from the database |
 | Checkout, order creation, stock reservation | **Real** — one transaction with row locks; cannot oversell |
@@ -58,7 +58,7 @@ Local development and tests use only the local database from `npm run db:dev` (`
 | `npm test` | unit + integration (integration starts its own throwaway Postgres — never the live DB) |
 | `npm run test:e2e` | Playwright shopping-to-admin journey (`E2E_BASE_URL=https://… npm run test:e2e` for a deployed site) |
 | `npm run db:migrate` · `db:seed` · `db:generate` | migrations (additive), seed (adds only what is missing), new migration from `schema.ts` |
-| `npm run images:build` | download, crop and encode catalogue photos from `scripts/images/manifest.json` |
+| `npm run images:build` | download, crop and encode catalogue photos from `scripts/images/manifest.json` (the build runs it with `--ensure` for photos not committed yet) |
 | `npm run assistant:smoke` | ask the assistant the reference questions (as an admin test chat) and check every amount against the database |
 | `ASSISTANT_EVAL_REPORT=1 ASSISTANT_EVAL_HELDOUT=1 npx vitest run tests/integration/assistant-eval.test.ts` | Mongolian evaluation (102 + 30 held-out conversations) → `docs/assistant/EVAL*.md` |
 | `npm run check` | lint + typecheck + tests + build |

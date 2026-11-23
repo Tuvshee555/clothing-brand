@@ -2,6 +2,12 @@
 //
 //   npm run images:build            # download (cached) + crop + encode everything
 //   npm run images:build -- --only hoodie-latte-1
+//   tsx scripts/images/build.ts --ensure   # build step: only photos not built yet
+//
+// `--ensure` runs first in `npm run build`, before migrations and the seed, so a
+// manifest photo that is not committed yet is built on Vercel and a product never
+// goes live without its photo. A failed download fails the Vercel build (the
+// previous deployment keeps serving). Elsewhere, without network, it only warns.
 //
 // Every photo comes from Burst (Shopify's free stock photo library) under the
 // Burst licence (free commercial use, modification allowed, no attribution
@@ -85,6 +91,7 @@ async function cropped(entry: ManifestEntry, buf: Buffer): Promise<Sharp> {
 
 async function main() {
   const only = process.argv.includes('--only') ? process.argv[process.argv.indexOf('--only') + 1] : null
+  const ensure = process.argv.includes('--ensure')
   const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8')) as ManifestEntry[]
   const credits: Record<string, unknown>[] = []
   for (const entry of manifest) {
@@ -103,7 +110,14 @@ async function main() {
     const widths = entry.kind === 'catalog' ? CATALOG_WIDTHS : EDITORIAL_WIDTHS
     const done = widths.every((w) => fs.existsSync(path.join(dir, `${entry.key}-${w}.webp`)))
     if (done && !only) continue
-    const buf = await original(entry.slug)
+    let buf: Buffer
+    try {
+      buf = await original(entry.slug)
+    } catch (err) {
+      if (!ensure || process.env.VERCEL) throw err
+      console.warn(`! ${entry.kind}/${entry.key} not built here (${(err as Error).message}); the Vercel build makes it.`)
+      continue
+    }
     const base = await (await cropped(entry, buf)).toBuffer()
     fs.mkdirSync(dir, { recursive: true })
     for (const w of widths) {

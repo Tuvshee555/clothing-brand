@@ -14,9 +14,9 @@ beforeAll(async () => {
 afterAll(() => cleanup())
 
 describe('seeded catalogue', () => {
-  it('has 30 published products with images, variants and unique SKUs', async () => {
+  it('has 35 published products with images, variants and unique SKUs', async () => {
     const catalog = await loadCatalog(db)
-    expect(catalog).toHaveLength(30)
+    expect(catalog).toHaveLength(35)
     for (const p of catalog) {
       expect(p.images.length).toBeGreaterThan(0)
       expect(p.variants.length).toBeGreaterThan(0)

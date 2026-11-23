@@ -788,5 +788,55 @@
     "licenseUrl": "https://www.shopify.com/stock-photos/licenses/shopify-some-rights-reserved",
     "used": "editorial",
     "modified": "Cropped, resized and re-encoded as WebP"
+  },
+  {
+    "key": "sneaker-bw-1",
+    "title": "Fashionable Black And White Sneakers",
+    "photographer": "Sarah Pflug",
+    "source": "https://burst.shopify.com/photos/fashionable-black-and-white-sneakers",
+    "license": "Burst licence (Shopify) — free commercial use, no attribution required",
+    "licenseUrl": "https://www.shopify.com/stock-photos/licenses/shopify-some-rights-reserved",
+    "used": "catalog",
+    "modified": "Cropped, resized and re-encoded as WebP"
+  },
+  {
+    "key": "runner-black-1",
+    "title": "Black Sneakers With White Sole",
+    "photographer": "Shopify Partners",
+    "source": "https://burst.shopify.com/photos/black-sneakers-with-shite-sole",
+    "license": "Burst licence (Shopify) — free commercial use, no attribution required",
+    "licenseUrl": "https://www.shopify.com/stock-photos/licenses/shopify-some-rights-reserved",
+    "used": "catalog",
+    "modified": "Cropped, resized and re-encoded as WebP"
+  },
+  {
+    "key": "loafer-brown-1",
+    "title": "Loafers Leaning Along White Wall",
+    "photographer": "Henry Geddes",
+    "source": "https://burst.shopify.com/photos/loafers-leaning-along-white-wall",
+    "license": "Burst licence (Shopify) — free commercial use, no attribution required",
+    "licenseUrl": "https://www.shopify.com/stock-photos/licenses/shopify-some-rights-reserved",
+    "used": "catalog",
+    "modified": "Cropped, resized and re-encoded as WebP"
+  },
+  {
+    "key": "boot-suede-black-1",
+    "title": "Suede Boots Fashion",
+    "photographer": "Matthew Henry",
+    "source": "https://burst.shopify.com/photos/suede-boots-fashion",
+    "license": "Burst licence (Shopify) — free commercial use, no attribution required",
+    "licenseUrl": "https://www.shopify.com/stock-photos/licenses/shopify-some-rights-reserved",
+    "used": "catalog",
+    "modified": "Cropped, resized and re-encoded as WebP"
+  },
+  {
+    "key": "boot-lace-brown-1",
+    "title": "Boots In Autumn Leaves",
+    "photographer": "Matthew Henry",
+    "source": "https://burst.shopify.com/photos/boots-in-autumn-leaves",
+    "license": "Burst licence (Shopify) — free commercial use, no attribution required",
+    "licenseUrl": "https://www.shopify.com/stock-photos/licenses/shopify-some-rights-reserved",
+    "used": "catalog",
+    "modified": "Cropped, resized and re-encoded as WebP"
   }
 ]

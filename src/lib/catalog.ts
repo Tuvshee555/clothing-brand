@@ -18,7 +18,9 @@ export const PRODUCT_STATUS_LABELS: Record<ProductStatus, string> = {
 /** Display order for sizes; anything unknown sorts after, alphabetically. */
 export const SIZE_ORDER = [
   'XXS', 'XS', 'S', 'M', 'L', 'XL', 'XXL',
-  '26', '27', '28', '29', '30', '31', '32', '33', '34', '36', '38',
+  // Waist sizes (26–38) and EU shoe sizes (35–46) share one ascending run.
+  '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36', '37', '38',
+  '39', '40', '41', '42', '43', '44', '45', '46',
   '80', '85', '90', '95', '100', '105', '110',
   'S/M', 'M/L', 'L/XL', 'ONE SIZE',
 ]

@@ -20,7 +20,7 @@ import type { Database } from '@/server/db/client'
 import * as t from '@/server/db/schema'
 import { loadCatalog } from '@/server/queries/catalog'
 import { loadPolicies, loadShippingMethods, loadStoreInfo } from '@/server/queries/settings'
-import { DEFAULT_SIZE_GUIDE } from '@/server/seed/content'
+import { DEFAULT_SIZE_GUIDE, withShoeChart } from '@/server/seed/content'
 
 export interface ToolContext {
   db: Database
@@ -71,7 +71,7 @@ export async function buildToolContext(db: Database): Promise<ToolContext> {
     shipping,
     categories,
     details: new Map(details.map((d) => [d.id, { description: d.description, care: d.care }])),
-    sizeGuide: (sizeGuide as SizeGuide | undefined) ?? DEFAULT_SIZE_GUIDE,
+    sizeGuide: withShoeChart((sizeGuide as SizeGuide | undefined) ?? DEFAULT_SIZE_GUIDE),
     faqs,
     settings,
   }

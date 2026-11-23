@@ -17,6 +17,7 @@ import { getStoreContent } from '@/server/queries/settings'
 type Props = { params: Promise<{ slug: string }>; searchParams: Promise<Record<string, string | string[] | undefined>> }
 
 const BOTTOMS = new Set(['trousers', 'jeans'])
+const SHOE_MEASURE_TIP = 'Хөлийнхөө уртыг өсгийнөөс хамгийн урт хурууны үзүүр хүртэл хэмжиж, хүснэгтээс размераа олно.'
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
@@ -122,8 +123,13 @@ async function ProductPageBody({ params, searchParams }: Props) {
       </Section>
       {!product.sizes.every((s) => s === 'ONE SIZE') && (
         <Section title="Хэмжээний заавар" id="size-guide">
-          <SizeGuideTable guide={content.sizeGuide} kind={BOTTOMS.has(product.categorySlug) ? 'bottoms' : 'tops'} />
-          <p className="mt-3 text-[12.5px] text-stone-600">{content.sizeGuide.note}</p>
+          <SizeGuideTable
+            guide={content.sizeGuide}
+            kind={product.categorySlug === 'shoes' ? 'shoes' : BOTTOMS.has(product.categorySlug) ? 'bottoms' : 'tops'}
+          />
+          <p className="mt-3 text-[12.5px] text-stone-600">
+            {product.categorySlug === 'shoes' ? SHOE_MEASURE_TIP : content.sizeGuide.note}
+          </p>
           <Link href="/size-guide" className="mt-2 inline-block text-[12.5px] underline underline-offset-4">
             Бүтэн хүснэгт
           </Link>
