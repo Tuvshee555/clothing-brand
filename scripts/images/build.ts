@@ -20,7 +20,10 @@ import sharp, { type Sharp } from 'sharp'
 
 interface ManifestEntry {
   key: string
+  /** The photo's page on Burst (credits link). */
   slug: string
+  /** CDN file name when it differs from the page slug (a page named with a typo keeps the corrected file). */
+  file?: string
   kind: 'catalog' | 'editorial'
   /** Crop anchor: sharp position ("attention", "north", "centre"…) or explicit offsets as fractions. */
   focus?: string | { x: number; y: number }
@@ -51,6 +54,8 @@ async function original(slug: string): Promise<Buffer> {
   const res = await fetch(url, { headers: { 'User-Agent': 'manan-store-image-build/1.0' } })
   if (!res.ok) throw new Error(`${res.status} for ${url}`)
   const buf = Buffer.from(await res.arrayBuffer())
+  // An unknown file name can come back as a web page with status 200: only a JPEG counts.
+  if (buf[0] !== 0xff || buf[1] !== 0xd8) throw new Error(`not a JPEG (${res.headers.get('content-type')}) for ${url}; check the file name in the manifest`)
   fs.mkdirSync(CACHE, { recursive: true })
   fs.writeFileSync(file, buf)
   return buf
@@ -112,7 +117,7 @@ async function main() {
     if (done && !only) continue
     let buf: Buffer
     try {
-      buf = await original(entry.slug)
+      buf = await original(entry.file ?? entry.slug)
     } catch (err) {
       if (!ensure || process.env.VERCEL) throw err
       console.warn(`! ${entry.kind}/${entry.key} not built here (${(err as Error).message}); the Vercel build makes it.`)
