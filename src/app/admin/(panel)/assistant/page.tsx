@@ -7,6 +7,9 @@ import { getAssistantOverview } from '@/server/queries/assistant-admin'
 
 export const metadata: Metadata = { title: 'AI чатбот' }
 
+// The Messenger/Instagram chatbot has its own admin; the demo shows it on Ursgal Digital's site.
+const CHATBOT_ADMIN_DEMO = 'https://www.ursgaldigital.com/chatbot'
+
 export default async function AssistantOverviewPage() {
   const actor = await requireAdminPage('/admin/assistant', 'assistant.view')
   const { status, conversations, handovers, recentProblems, summary } = await getAssistantOverview(actor)
@@ -22,6 +25,18 @@ export default async function AssistantOverviewPage() {
           </Link>
         }
       />
+      {actor.role === 'demo' && (
+        <Card title="Messenger, Instagram-ийн чатбот" className="mb-4">
+          <div className="flex flex-wrap items-center justify-between gap-3 text-[13px]">
+            <p className="max-w-2xl text-stone-600">
+              Энэ туслах дэлгүүрийн сайт дээр ажилладаг. Facebook Page, Instagram-ийн мессеж, сэтгэгдэлд хариулдаг чатбот тусдаа самбартай: чатууд, захиалга, ботын мэдлэг, хариулж чадаагүй асуулт, тест чат.
+            </p>
+            <a href={CHATBOT_ADMIN_DEMO} target="_blank" rel="noreferrer" className="inline-flex h-10 items-center rounded-lg border border-stone-300 bg-white px-4 text-[13.5px] font-medium hover:border-ink">
+              Чатботын самбарыг үзэх ↗
+            </a>
+          </div>
+        </Card>
+      )}
       {actor.role === 'demo' && <Notice>Демо горим: жишээ яриа болон таны энэ хөтчөөс эхлүүлсэн яриа харагдана. Дэлгүүрийн туслахаас «ажилтантай холбогдох» гэж бичээд, тэр яриаг «Ажилтанд шилжүүлэх» хэсгээс хүлээн авч үзээрэй.</Notice>}
 
       <Card title="Одоогийн төлөв" className="mb-4">
@@ -29,17 +44,22 @@ export default async function AssistantOverviewPage() {
           <ModeBadge mode={status.mode} />
           <span>{status.reason}</span>
         </div>
-        <dl className="mt-4 grid gap-4 text-[13px] sm:grid-cols-4">
-          <div>
-            <dt className="text-stone-600">Загвар</dt>
-            <dd className="font-medium">{status.configured ? status.model : `${status.model} (түлхүүргүй)`}</dd>
-          </div>
-          <div>
-            <dt className="text-stone-600">Өнөөдрийн AI зардал</dt>
-            <dd className="tabular font-medium">
-              ${status.spentTodayUsd.toFixed(4)} / ${status.budgetUsd.toFixed(2)}
-            </dd>
-          </div>
+        {/* Model names and dollar costs are the owner's business; a demo visitor sees what the bot does. */}
+        <dl className={`mt-4 grid gap-4 text-[13px] ${actor.role === 'demo' ? 'sm:grid-cols-2' : 'sm:grid-cols-4'}`}>
+          {actor.role !== 'demo' && (
+            <>
+              <div>
+                <dt className="text-stone-600">Загвар</dt>
+                <dd className="font-medium">{status.configured ? status.model : `${status.model} (түлхүүргүй)`}</dd>
+              </div>
+              <div>
+                <dt className="text-stone-600">Өнөөдрийн AI зардал</dt>
+                <dd className="tabular font-medium">
+                  ${status.spentTodayUsd.toFixed(4)} / ${status.budgetUsd.toFixed(2)}
+                </dd>
+              </div>
+            </>
+          )}
           <div>
             <dt className="text-stone-600">Чатаар захиалга</dt>
             <dd className="font-medium">{status.settings.chatOrdersEnabled ? `Нээлттэй · ${status.settings.reservationMinutes} мин нөөцлөнө` : 'Хаалттай'}</dd>
