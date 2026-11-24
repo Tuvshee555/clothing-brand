@@ -23,6 +23,8 @@ export const LIMITS = {
   assistantPoll: { name: 'assistant-poll', limit: 240, windowSeconds: 60 * 60 },
   adminWrite: { name: 'admin-write', limit: 240, windowSeconds: 60 * 60 },
   upload: { name: 'upload', limit: 40, windowSeconds: 60 * 60 },
+  /** Daily housekeeping started by Vercel's scheduler without a CRON_SECRET (api/cron/maintenance). */
+  maintenance: { name: 'maintenance', limit: 1, windowSeconds: 20 * 60 * 60 },
 } satisfies Record<string, RateLimitRule>
 
 /** `next dev` serves everything from one localhost IP, so limits are 20× looser there unless RATE_LIMITS=strict. */

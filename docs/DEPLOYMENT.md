@@ -11,7 +11,7 @@ https://manan-store.vercel.app
 |---|---|
 | `DATABASE_URL` | Neon pooled connection string (sensitive) |
 | `SESSION_SECRET` | 32+ random characters (sensitive); keys visitor/IP hashes |
-| `CRON_SECRET` | protects `/api/cron/maintenance` (sensitive) |
+| `CRON_SECRET` | optional. When set, `/api/cron/maintenance` accepts only that bearer. When not set, it accepts Vercel Cron's own requests, at most one run per 20 hours |
 | `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET`, `CLOUDINARY_FOLDER` | admin photo uploads (owner only) |
 | `QPAY_MODE` | `mock` — the labelled simulation |
 | `STORE_INDEXING` | `noindex` |

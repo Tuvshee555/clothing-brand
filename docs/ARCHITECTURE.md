@@ -58,7 +58,8 @@ and may take over and answer only its own.
 
 ## Daily maintenance
 
-`/api/cron/maintenance` (Vercel Cron, 03:00 Ulaanbaatar, `CRON_SECRET`) cancels visitor orders
+`/api/cron/maintenance` (Vercel Cron, 03:00 Ulaanbaatar; `CRON_SECRET` if set, otherwise Vercel's scheduler
+at most once per 20 hours — `server/security/cron.ts`) cancels visitor orders
 left open > 48 h (returning stock), releases expired chat-order holds, restores the seeded shelf (counting units reserved by open
 orders), anonymises visitor-entered details and deletes visitor chats after 30 days, and prunes carts,
 sessions, rate-limit windows, week-old test chats and 90-day-old problem logs.
