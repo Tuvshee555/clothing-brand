@@ -4,6 +4,8 @@
 // price; otherwise the approved default. A premium model is only ever reached
 // through one of those two explicit choices.
 
+import { formatMoney } from '@/lib/money'
+
 /** USD per million tokens [input, output]: an estimate for budgeting, never a bill. */
 export const PRICE_PER_MILLION_USD: Record<string, [number, number]> = {
   'gpt-4.1': [2, 8],
@@ -23,11 +25,32 @@ export const SELECTABLE_MODELS = ['', 'gpt-4.1-mini', 'gpt-4.1', 'gpt-4o-mini'] 
 /** Lorentz's approved production default: same held-out accuracy as gpt-4.1 at about a fifth of the cost. */
 export const DEFAULT_AI_MODEL = 'gpt-4.1-mini'
 
+/** What the owner chooses between, in plain words; the model ids stay on the server. */
 export const MODEL_LABELS: Record<string, string> = {
-  '': 'Серверийн үндсэн тохиргоо',
-  'gpt-4.1-mini': 'gpt-4.1-mini (санал болгосон)',
-  'gpt-4.1': 'gpt-4.1 (үнэтэй)',
-  'gpt-4o-mini': 'gpt-4o-mini (хямд, сул)',
+  '': 'Үндсэн тохиргоо',
+  'gpt-4.1-mini': 'Хэмнэлттэй (санал болгосон)',
+  'gpt-4.1': 'Илүү нарийн (үнэтэй)',
+  'gpt-4o-mini': 'Хамгийн хямд (сул)',
+}
+
+/** The plain-word level for a model the server resolved (dated ids included). */
+export function aiLevelLabel(model: string): string {
+  return MODEL_LABELS[model] ?? MODEL_LABELS[model.replace(/-\d{4}-\d{2}-\d{2}$/, '')] ?? 'Тусгай тохиргоо'
+}
+
+/**
+ * AI spend is tracked in US dollars (the AI service bills in dollars); owners see an
+ * approximate tögrög figure. This rate is for display only — an estimate, never a bill.
+ */
+export const MNT_PER_USD = 3_500
+export const usdToMnt = (usd: number) => Math.round(usd * MNT_PER_USD)
+export const mntToUsd = (mnt: number) => mnt / MNT_PER_USD
+
+/** «≈ 1,250₮»; below one tögrög «1₮-өөс бага». */
+export function formatAiCost(usd: number): string {
+  if (!(usd > 0)) return '0₮'
+  const mnt = usd * MNT_PER_USD
+  return mnt < 1 ? '1₮-өөс бага' : `≈ ${formatMoney(Math.round(mnt))}`
 }
 
 export function knownModel(model: string): boolean {

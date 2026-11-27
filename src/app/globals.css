@@ -181,3 +181,8 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Checkout keeps only what the task needs: no site footer or newsletter (the chat hides itself). */
+body:has([data-checkout]) .site-footer {
+  display: none;
+}

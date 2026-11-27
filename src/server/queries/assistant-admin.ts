@@ -42,7 +42,7 @@ export async function getAssistantStatus() {
     reason: !settings.enabled
       ? 'Туслахыг унтраасан.'
       : !configured
-        ? 'OpenAI түлхүүр тохируулаагүй тул каталогийн (дүрмийн) горимд ажиллаж байна.'
+        ? 'Каталогийн горим: үнэ, үлдэгдэл, хүргэлтийн хариулт бүрийг дэлгүүрийн сангаас шууд уншина. AI холболтыг Ursgal Digital асаана.'
         : !settings.aiEnabled
           ? 'Эзэмшигч AI-г унтраасан: каталогийн горим.'
           : spent >= budgetMicro || settings.aiDailyBudgetUsd <= 0

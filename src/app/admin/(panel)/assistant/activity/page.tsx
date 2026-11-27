@@ -19,9 +19,25 @@ const ACTION_LABELS: Record<string, string> = {
   'order.created_by_assistant': 'Туслах захиалга үүсгэсэн',
 }
 
+
+/** Settings names as the settings page calls them — never the stored keys. */
+const SETTING_LABELS: Record<string, string> = {
+  enabled: 'туслах асаалттай эсэх',
+  aiEnabled: 'AI ашиглах',
+  aiModel: 'AI-ийн түвшин',
+  aiDailyBudgetUsd: 'өдрийн AI зардлын хязгаар',
+  chatOrdersEnabled: 'чатаар захиалга',
+  reservationMinutes: 'нөөцлөх хугацаа',
+  maxActiveOrders: 'төлөгдөөгүй захиалгын тоо',
+  maxQuantityPerItem: 'нэг бараанаас дээд тоо',
+  handoverAutoResumeHours: 'туслах руу буцаах хугацаа',
+  showExactStock: 'үлдэгдлийн яг тоо',
+  greeting: 'мэндчилгээ',
+}
+
 function detail(action: string, metadata: unknown): string {
   const m = (metadata ?? {}) as Record<string, unknown>
-  if (action === 'assistant.settings_updated' && Array.isArray(m.changed)) return m.changed.length ? `Өөрчилсөн: ${m.changed.join(', ')}` : 'Өөрчлөлтгүй'
+  if (action === 'assistant.settings_updated' && Array.isArray(m.changed)) return m.changed.length ? `Өөрчилсөн: ${m.changed.map((k) => SETTING_LABELS[String(k)] ?? 'бусад тохиргоо').join(', ')}` : 'Өөрчлөлтгүй'
   if (typeof m.question === 'string') return `«${m.question}»`
   if (action === 'conversation.auto_released' && typeof m.hours === 'number') return `${m.hours} цаг чимээгүй байсны дараа`
   if (typeof m.length === 'number') return `${m.length} тэмдэгт`

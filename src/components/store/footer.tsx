@@ -11,7 +11,7 @@ export async function Footer() {
   const heading = 'eyebrow mb-4 text-white/60'
   const link = 'link-underline text-[13.5px] text-white/85 hover:text-white'
   return (
-    <footer className="mt-24 bg-ink text-white">
+    <footer className="site-footer mt-24 bg-ink text-white">
       <div className="container-page grid gap-12 py-16 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
         <div className="max-w-sm">
           <p className="wordmark text-2xl">{BRAND.name}</p>

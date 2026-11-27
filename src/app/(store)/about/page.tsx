@@ -37,7 +37,7 @@ export default function AboutPage() {
           </div>
         </div>
         <div className="relative aspect-[4/5] bg-bone">
-          <Image src={EDITORIAL.heroRight.src} alt={EDITORIAL.heroRight.alt} fill priority sizes="(min-width: 1024px) 45vw, 100vw" className="object-cover" />
+          <Image src={EDITORIAL.heroRight.src} alt={EDITORIAL.heroRight.alt} fill preload sizes="(min-width: 1024px) 45vw, 100vw" className="object-cover" />
         </div>
       </section>
 

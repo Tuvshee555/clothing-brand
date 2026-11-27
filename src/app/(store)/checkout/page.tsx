@@ -36,7 +36,8 @@ async function CheckoutBody() {
 
 export default function CheckoutPage() {
   return (
-    <div className="container-page pt-10 sm:pt-14">
+    // data-checkout: the site footer and newsletter step aside here (globals.css).
+    <div className="container-page pt-10 sm:pt-14" data-checkout>
       <h1 className="display mb-8 text-[40px] sm:text-[52px]">Захиалах</h1>
       <Suspense fallback={<div className="h-96 animate-pulse bg-paper-2" />}>
         <CheckoutBody />

@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import type { AssistantSettings } from '@/lib/assistant/settings'
-import { MODEL_LABELS, SELECTABLE_MODELS } from '@/lib/chat/models'
+import { MODEL_LABELS, mntToUsd, SELECTABLE_MODELS, usdToMnt } from '@/lib/chat/models'
 import { saveAssistantSettingsAction } from '@/server/actions/assistant'
 import { AButton, ainput } from '../ui'
 import { ActionFeedback, FieldError, useAdminAction } from '../use-admin-action'
@@ -62,13 +62,13 @@ export function AssistantSettingsForm({ initial, readOnly, aiConfigured }: { ini
         </section>
 
         <section className="space-y-3">
-          <h3 className="text-[14px] font-medium">AI загвар</h3>
-          {!aiConfigured && <p className="rounded-lg bg-warning-soft px-3 py-2 text-[12.5px] text-warning">OpenAI түлхүүр тохируулаагүй тул туслах каталогийн (дүрмийн) горимд ажиллаж байна. Доорх тохиргоо түлхүүр нэмэгдмэгц хэрэгжинэ.</p>}
-          <Toggle id="as-ai" label="AI ашиглах" hint="Нээлттэй асуулт, зөвлөмжид AI хариулна. Үнэ, үлдэгдэл, хүргэлт, захиалгыг үргэлж дүрмээр, сангаас шууд хариулна." checked={v.aiEnabled} onChange={(x) => set('aiEnabled', x)} />
+          <h3 className="text-[14px] font-medium">AI</h3>
+          {!aiConfigured && <p className="rounded-lg bg-warning-soft px-3 py-2 text-[12.5px] text-warning">AI холбогдоогүй тул туслах одоо каталогийн горимд ажиллаж, бүх хариултыг дэлгүүрийн сангаас шууд уншина. Доорх тохиргоо AI холбогдмогц хэрэгжинэ.</p>}
+          <Toggle id="as-ai" label="AI ашиглах" hint="Нээлттэй асуулт, зөвлөмжид AI хариулна. Үнэ, үлдэгдэл, хүргэлт, захиалгыг үргэлж дэлгүүрийн сангаас шууд хариулна." checked={v.aiEnabled} onChange={(x) => set('aiEnabled', x)} />
           <div className="grid gap-4 sm:grid-cols-2">
             <div>
               <label htmlFor="as-model" className="mb-1 block text-[12.5px] font-medium">
-                Загвар
+                AI-ийн түвшин
               </label>
               <select id="as-model" className={ainput} value={v.aiModel} onChange={(e) => set('aiModel', e.target.value as AssistantSettings['aiModel'])}>
                 {SELECTABLE_MODELS.map((m) => (
@@ -77,9 +77,17 @@ export function AssistantSettingsForm({ initial, readOnly, aiConfigured }: { ini
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-[11.5px] text-stone-500">gpt-4.1-mini: Lorentz-ийн туршилтаар gpt-4.1-тэй ижил нарийвчлал, ойролцоогоор 5 дахин хямд.</p>
+              <p className="mt-1 text-[11.5px] text-stone-500">«Хэмнэлттэй» нь «Илүү нарийн»-тай ойролцоо оновчтой хариулдаг ч зардал нь 5 дахин бага.</p>
             </div>
-            <NumberField id="as-budget" label="Өдрийн AI төсөв (USD)" hint="Хэтэрвэл маргааш хүртэл дүрмээр хариулна. 0 = AI унтраастай." value={v.aiDailyBudgetUsd} step={0.1} onChange={(x) => set('aiDailyBudgetUsd', x)} error={fieldErrors.aiDailyBudgetUsd} />
+            <NumberField
+              id="as-budget"
+              label="Өдрийн AI зардлын хязгаар (₮)"
+              hint="Хязгаарт хүрвэл маргааш хүртэл туслах зөвхөн дэлгүүрийн сангаас хариулна. 0 = AI унтраастай."
+              value={usdToMnt(v.aiDailyBudgetUsd)}
+              step={500}
+              onChange={(x) => set('aiDailyBudgetUsd', mntToUsd(x))}
+              error={fieldErrors.aiDailyBudgetUsd}
+            />
           </div>
         </section>
 

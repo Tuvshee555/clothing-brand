@@ -24,11 +24,12 @@ test('shopper: variant stock → cart → checkout → simulated QPay → demo a
   await expect(page).toHaveURL(/\/checkout$/)
   // The whole store is labelled a demo in the announcement bar; checkout itself reads like a real one.
   await expect(page.getByText(/Демо дэлгүүр/).first()).toBeAttached()
-  // Required fields are enforced on the server.
-  await page.getByRole('button', { name: 'Захиалга баталгаажуулах' }).click()
+  // Every missing field is listed at once (the server enforces the same rules).
+  const submit = page.getByRole('button', { name: /^Захиалах · / })
+  await submit.click()
   await expect(page.getByRole('alert').first()).toBeVisible()
   await page.getByRole('button', { name: 'Жишээ мэдээллээр бөглөх' }).click()
-  await page.getByRole('button', { name: 'Захиалга баталгаажуулах' }).click()
+  await submit.click()
 
   await expect(page).toHaveURL(/\/orders\/MN-\d+/, { timeout: 30_000 })
   await expect(page.getByRole('heading', { name: 'Төлбөрөө хийнэ үү' })).toBeVisible()

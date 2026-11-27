@@ -3,6 +3,7 @@ import type { Metadata } from 'next'
 import Image from 'next/image'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
+import { connection } from 'next/server'
 import QRCode from 'qrcode'
 import { Suspense } from 'react'
 import { OrderProgress } from '@/components/order-progress'
@@ -57,7 +58,8 @@ function OrderLocked({ number }: { number: string }) {
 }
 
 async function OrderBody({ params, searchParams }: Props) {
-  const [{ number }, sp, visitorKey] = await Promise.all([params, searchParams, readVisitorKey()])
+  // connection(): the lookup link's expiry is checked against the clock, read only at request time.
+  const [{ number }, sp, visitorKey] = await Promise.all([params, searchParams, readVisitorKey(), connection()])
   const token = typeof sp.t === 'string' ? sp.t : null
   const order = await findCustomerOrder(db, number, { token, visitorKey })
   if (!order) {

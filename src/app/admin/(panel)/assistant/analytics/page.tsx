@@ -34,7 +34,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       />
       <div className="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Stat label="Яриа" value={conversations.reduce((n, c) => n + c.n, 0)} hint={`${customerMessages} асуулт`} />
-        <Stat label="Туслахын хариулт" value={s.replies} hint={`AI: ${pct(s.aiReplies, s.replies)} · дүрэм: ${pct(s.rulesReplies, s.replies)}`} />
+        <Stat label="Туслахын хариулт" value={s.replies} hint={`AI: ${pct(s.aiReplies, s.replies)} · сангаас: ${pct(s.rulesReplies, s.replies)}`} />
         <Stat label="Хариулах хугацаа" value={s.avgDurationMs ? `${(s.avgDurationMs / 1000).toFixed(1)} с` : '—'} hint={s.p95DurationMs ? `95% нь ${(s.p95DurationMs / 1000).toFixed(1)} с-ээс бага` : undefined} />
         <Stat label="Латин үсгээр бичсэн" value={pct(s.scripts.latin, s.scripts.latin + s.scripts.cyrillic)} hint={`${s.scripts.latin} латин · ${s.scripts.cyrillic} кирилл`} />
       </div>

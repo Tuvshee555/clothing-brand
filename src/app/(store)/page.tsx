@@ -73,10 +73,11 @@ export default async function HomePage() {
       <section className="relative">
         <div className="grid h-[calc(100svh-6.25rem)] max-h-[880px] min-h-[540px] grid-cols-1 md:grid-cols-2">
           <div className="relative hidden md:block">
-            <Image src={EDITORIAL.heroLeft.src} alt={EDITORIAL.heroLeft.alt} fill priority sizes="50vw" className="object-cover" />
+            {/* Desktop only: not preloaded, so a phone never downloads it. */}
+            <Image src={EDITORIAL.heroLeft.src} alt={EDITORIAL.heroLeft.alt} fill sizes="50vw" className="object-cover" />
           </div>
           <div className="relative">
-            <Image src={EDITORIAL.heroRight.src} alt={EDITORIAL.heroRight.alt} fill priority sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
+            <Image src={EDITORIAL.heroRight.src} alt={EDITORIAL.heroRight.alt} fill preload sizes="(min-width: 768px) 50vw, 100vw" className="object-cover" />
           </div>
         </div>
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-ink/65 via-ink/10 to-transparent md:from-ink/55 md:via-transparent" />
@@ -130,10 +131,10 @@ export default async function HomePage() {
         <section className="container-page pt-24">
           <SectionHeading eyebrow="Цуглуулга" title="Онцлох цуглуулгууд" />
           <div className="grid gap-4 md:grid-cols-3">
-            {featured.map((c, i) => (
+            {featured.map((c) => (
               <Link key={c.slug} href={`/collections/${c.slug}`} className="group relative block aspect-[4/5] overflow-hidden bg-bone md:aspect-[3/4]">
                 {c.imageUrl && (
-                  <Image src={c.imageUrl} alt={c.name} fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover transition duration-[900ms] ease-out group-hover:scale-[1.04]" priority={i === 0} />
+                  <Image src={c.imageUrl} alt={c.name} fill sizes="(min-width: 768px) 33vw, 100vw" className="object-cover transition duration-[900ms] ease-out group-hover:scale-[1.04]" />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-ink/60 via-transparent to-transparent" />
                 <div className="absolute inset-x-0 bottom-0 p-6 text-white">

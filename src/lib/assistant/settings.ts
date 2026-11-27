@@ -2,7 +2,8 @@
 // the engine reads them, the admin edits them. Missing or malformed values fall
 // back to these defaults, so the assistant works before the row exists.
 import { z } from 'zod'
-import { SELECTABLE_MODELS } from '@/lib/chat/models'
+import { formatMoney } from '@/lib/money'
+import { SELECTABLE_MODELS, usdToMnt } from '@/lib/chat/models'
 import { DEFAULT_MAX_ACTIVE_ORDERS, DEFAULT_MAX_QUANTITY_PER_ITEM, DEFAULT_RESERVATION_MINUTES } from '@/lib/chat/reservation'
 
 export interface AssistantSettings {
@@ -59,9 +60,9 @@ export const assistantSettingsInput = z.object({
   aiEnabled: z.boolean(),
   aiModel: z.enum(SELECTABLE_MODELS, { error: 'Загварыг жагсаалтаас сонгоно уу.' }),
   aiDailyBudgetUsd: z
-    .number({ error: 'Өдрийн төсөв: тоо оруулна уу.' })
-    .min(0, { error: 'Өдрийн төсөв сөрөг байж болохгүй.' })
-    .max(50, { error: 'Өдрийн төсөв хамгийн ихдээ $50.' }),
+    .number({ error: 'Өдрийн AI зардлын хязгаар: тоо оруулна уу.' })
+    .min(0, { error: 'Өдрийн AI зардлын хязгаар сөрөг байж болохгүй.' })
+    .max(50, { error: `Өдрийн AI зардлын хязгаар хамгийн ихдээ ${formatMoney(usdToMnt(50))}.` }),
   chatOrdersEnabled: z.boolean(),
   reservationMinutes: int(5, 1440, 'Нөөцлөх хугацаа'),
   maxActiveOrders: int(1, 10, 'Төлөгдөөгүй захиалгын тоо'),

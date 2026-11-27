@@ -23,7 +23,7 @@ export default async function AssistantSettingsPage() {
           {updatedAt && <span className="text-stone-500">· Сүүлд өөрчилсөн {dateTime.format(updatedAt)}</span>}
         </div>
         <p className="mt-2 text-[12px] text-stone-500">
-          OpenAI түлхүүр зөвхөн серверийн орчны хувьсагчид (OPENAI_API_KEY) хадгалагдана — энд харагдахгүй, засагдахгүй. Түлхүүр: {status.configured ? 'тохируулсан' : 'тохируулаагүй'}.
+          AI холболт: {status.configured ? 'холбогдсон' : 'холбогдоогүй'}. Холболтын нууц түлхүүрийг Ursgal Digital серверт хадгалдаг — энд харагдахгүй.
         </p>
       </Card>
       <Card>

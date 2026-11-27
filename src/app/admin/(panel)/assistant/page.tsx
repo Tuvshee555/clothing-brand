@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ModeBadge, Notice, ReasonBadge } from '@/components/admin/assistant/ui'
 import { AEmpty, Card, dateTime, PageHeader, Stat } from '@/components/admin/ui'
+import { aiLevelLabel, formatAiCost } from '@/lib/chat/models'
 import { requireAdminPage } from '@/server/auth/current'
 import { getAssistantOverview } from '@/server/queries/assistant-admin'
 
@@ -44,18 +45,18 @@ export default async function AssistantOverviewPage() {
           <ModeBadge mode={status.mode} />
           <span>{status.reason}</span>
         </div>
-        {/* Model names and dollar costs are the owner's business; a demo visitor sees what the bot does. */}
+        {/* AI level and spend are the owner's business; a demo visitor sees what the bot does. */}
         <dl className={`mt-4 grid gap-4 text-[13px] ${actor.role === 'demo' ? 'sm:grid-cols-2' : 'sm:grid-cols-4'}`}>
           {actor.role !== 'demo' && (
             <>
               <div>
-                <dt className="text-stone-600">Загвар</dt>
-                <dd className="font-medium">{status.configured ? status.model : `${status.model} (түлхүүргүй)`}</dd>
+                <dt className="text-stone-600">AI-ийн түвшин</dt>
+                <dd className="font-medium">{status.configured ? aiLevelLabel(status.model) : 'AI холбогдоогүй'}</dd>
               </div>
               <div>
                 <dt className="text-stone-600">Өнөөдрийн AI зардал</dt>
                 <dd className="tabular font-medium">
-                  ${status.spentTodayUsd.toFixed(4)} / ${status.budgetUsd.toFixed(2)}
+                  {formatAiCost(status.spentTodayUsd)} / {formatAiCost(status.budgetUsd)}
                 </dd>
               </div>
             </>

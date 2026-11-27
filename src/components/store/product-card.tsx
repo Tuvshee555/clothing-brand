@@ -36,7 +36,7 @@ export function ProductCard({
               alt={primary.alt}
               fill
               sizes={sizes}
-              priority={priority}
+              preload={priority}
               className={cn('object-cover transition-transform duration-700 ease-out group-hover:scale-[1.03]', soldOut && 'opacity-70 grayscale-[35%]')}
             />
           ) : (

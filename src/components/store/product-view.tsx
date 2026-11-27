@@ -164,7 +164,7 @@ export function ProductView({
         <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory overflow-x-auto sm:mx-0 lg:hidden">
           {images.map((img, i) => (
             <button key={img.id} type="button" onClick={() => setLightbox(i)} className="relative aspect-[4/5] w-full shrink-0 snap-center bg-bone" aria-label={`${img.alt} — томруулах`}>
-              <Image src={img.url} alt={img.alt} fill sizes="100vw" priority={i === 0} className="object-cover" />
+              <Image src={img.url} alt={img.alt} fill sizes="100vw" preload={i === 0} className="object-cover" />
               <span className="tabular absolute bottom-3 right-3 bg-paper/85 px-2 py-0.5 text-[11px]">
                 {i + 1} / {images.length}
               </span>
@@ -180,7 +180,14 @@ export function ProductView({
               className={cn('group relative aspect-[4/5] cursor-zoom-in overflow-hidden bg-bone', images.length % 2 === 1 && i === 0 && 'col-span-2 aspect-[5/4]')}
               aria-label={`${img.alt} — томруулах`}
             >
-              <Image src={img.url} alt={img.alt} fill sizes="(min-width: 1024px) 30vw, 50vw" priority={i < 2} className="object-cover transition duration-700 group-hover:scale-[1.02]" />
+              {/* Desktop grid (hidden on phones, so not preloaded there); a lone first photo spans both columns. */}
+              <Image
+                src={img.url}
+                alt={img.alt}
+                fill
+                sizes={images.length % 2 === 1 && i === 0 ? '(min-width: 1024px) 55vw, 100vw' : '(min-width: 1024px) 28vw, 50vw'}
+                className="object-cover transition duration-700 group-hover:scale-[1.02]"
+              />
               <ZoomIn className="absolute right-3 top-3 h-4 w-4 text-white opacity-0 drop-shadow transition group-hover:opacity-100" />
             </button>
           ))}

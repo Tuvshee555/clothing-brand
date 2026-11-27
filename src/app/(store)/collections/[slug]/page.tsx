@@ -29,7 +29,7 @@ async function Results({ params, searchParams }: Props) {
     <>
       {c.imageUrl && (
         <div className="relative h-[34vh] min-h-[240px] max-h-[420px] bg-bone">
-          <Image src={c.imageUrl} alt={c.name} fill priority sizes="100vw" className="object-cover" />
+          <Image src={c.imageUrl} alt={c.name} fill preload sizes="100vw" className="object-cover" />
           <div className="absolute inset-0 bg-gradient-to-t from-ink/35 to-transparent" />
         </div>
       )}
