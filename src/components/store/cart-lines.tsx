@@ -60,7 +60,7 @@ export function CartLines({ lines }: { lines: CartLine[] }) {
                     <Plus className="h-3.5 w-3.5" />
                   </button>
                 </div>
-                <button type="button" onClick={() => change(line.itemId, 0)} disabled={pending} className="text-[13px] text-stone-600 underline underline-offset-4 hover:text-ink">
+                <button type="button" onClick={() => change(line.itemId, 0)} disabled={pending} className="-my-2 -mr-2 px-2 py-2.5 text-[13px] text-stone-600 underline underline-offset-4 hover:text-ink">
                   Хасах
                 </button>
               </div>

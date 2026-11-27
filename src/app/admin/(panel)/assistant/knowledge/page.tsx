@@ -77,7 +77,7 @@ export default async function KnowledgePage() {
             ))}
           </ul>
           <p className="mt-3 border-t border-stone-100 pt-3 text-[13px]">
-            Хэмжээний хүснэгт: {k.sizeGuide ? `${k.sizeGuide.rows} мөр` : 'үндсэн хүснэгт'}. Туслах өндөр, жингээр хэмжээ таамаглахгүй — зөвхөн энэ хүснэгт, барааны хэлбэрээр зөвлөнө.
+            Хэмжээний хүснэгт: {k.sizeGuide && k.sizeGuide.rows > 0 ? `${k.sizeGuide.rows} мөр` : 'үндсэн хүснэгт'}. Туслах өндөр, жингээр хэмжээ таамаглахгүй — зөвхөн энэ хүснэгт, барааны хэлбэрээр зөвлөнө.
           </p>
           <Link href="/admin/settings" className="mt-3 inline-block text-[13px] underline underline-offset-2">
             Тохиргоонд засах

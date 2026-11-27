@@ -217,7 +217,8 @@ export default async function HomePage() {
                 Суурь хувцас үзэх
               </Link>
             </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            {/* Three basics: two columns on a phone would leave a hole, so the third shows from sm up. */}
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 max-sm:[&>*:nth-child(3)]:hidden">
               {essentials.map((p) => (
                 <ProductCard key={p.id} product={p} sizes="(min-width: 1024px) 18vw, 45vw" />
               ))}

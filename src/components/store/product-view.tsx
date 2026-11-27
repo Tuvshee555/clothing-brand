@@ -127,6 +127,12 @@ export function ProductView({
   const live = variant ? stock[variant.id] : undefined
   const availability = variant && live ? variantAvailability({ ...live, isActive: live.isActive && variant.isActive }) : null
   const sellable = availability === 'in_stock' || availability === 'low_stock'
+  // The size grid marks sizes with few left by a small dot; the hint under it says what the dot means.
+  const anyLowStock = product.sizes.some((s) => {
+    const v = variantFor(s)
+    const st = v ? stock[v.id] : undefined
+    return !!v && !!st && variantAvailability({ ...st, isActive: st.isActive && v.isActive }) === 'low_stock'
+  })
   const maxQty = live ? Math.min(live.stock, MAX_LINE_QUANTITY) : 1
   const prices = product.variants.filter((v) => v.isActive).map((v) => v.price)
   const minPrice = prices.length ? Math.min(...prices) : product.basePrice
@@ -270,7 +276,16 @@ export function ProductView({
             })}
           </div>
           <p className="mt-3 min-h-5 text-[13px]" aria-live="polite">
-            {!size && <span className="text-stone-600">Хэмжээгээ сонгоход үлдэгдэл харагдана.</span>}
+            {!size && (
+              <span className="text-stone-600">
+                Хэмжээгээ сонгоход үлдэгдэл харагдана.
+                {anyLowStock && (
+                  <span className="ml-2 inline-flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="inline-block h-1.5 w-1.5 bg-accent" aria-hidden /> цөөн үлдсэн
+                  </span>
+                )}
+              </span>
+            )}
             {size && availability === 'in_stock' && (
               <span className="text-success">
                 Бэлэн байгаа · үлдэгдэл <span className="tabular">{live?.stock}</span> ширхэг
@@ -311,7 +326,6 @@ export function ProductView({
           </Button>
         </div>
         {error && <Alert tone="danger" className="mt-4">{error}</Alert>}
-        {variant && <p className="mt-3 text-[11.5px] text-stone-500">SKU: {variant.sku}</p>}
 
         <div className="mt-8 border-t border-stone-200">{info}</div>
       </div>

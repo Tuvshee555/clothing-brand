@@ -166,12 +166,12 @@ async function ProductPageBody({ params, searchParams }: Props) {
     <>
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, '\\u003c') }} />
       <div className="container-page pt-6 sm:pt-8">
-        <nav aria-label="Байршил" className="mb-6 flex flex-wrap items-center gap-1.5 text-[12px] text-stone-600">
-          <Link href="/" className="hover:text-ink">
+        <nav aria-label="Байршил" className="-mt-3 mb-3 flex flex-wrap items-center gap-x-1.5 text-[12px] text-stone-600">
+          <Link href="/" className="py-3 hover:text-ink">
             Нүүр
           </Link>
           <span aria-hidden>/</span>
-          <Link href={`/shop/${product.categorySlug}`} className="hover:text-ink">
+          <Link href={`/shop/${product.categorySlug}`} className="py-3 hover:text-ink">
             {product.categoryName}
           </Link>
           <span aria-hidden>/</span>

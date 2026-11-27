@@ -276,6 +276,12 @@ export async function listInquiries(actor: Actor, f: { days?: number; kind?: Inq
 // Knowledge (what the assistant reads)
 // ---------------------------------------------------------------------------
 
+/** Rows across every chart a stored size guide holds: clothing (tops, bottoms) and shoes (adult, children's). */
+function sizeGuideRows(value: unknown): number {
+  const guide = value as Partial<Record<'tops' | 'bottoms' | 'shoes' | 'kids', { rows?: unknown[] }>> | null
+  return (['tops', 'bottoms', 'shoes', 'kids'] as const).reduce((n, key) => n + (guide?.[key]?.rows?.length ?? 0), 0)
+}
+
 export async function getKnowledge() {
   const [catalog, policies, shipping, faqs, sizeGuide, details] = await Promise.all([
     loadCatalog(db),
@@ -304,7 +310,7 @@ export async function getKnowledge() {
     },
     policies: Object.entries(policies).map(([key, p]) => ({ key, title: p.title, paragraphs: p.body.split(/\n\n+/).length })),
     shipping,
-    sizeGuide: sizeGuide[0] ? { rows: ((sizeGuide[0].value as { tops?: { rows: unknown[] }; bottoms?: { rows: unknown[] } }).tops?.rows.length ?? 0) + ((sizeGuide[0].value as { bottoms?: { rows: unknown[] } }).bottoms?.rows.length ?? 0) } : null,
+    sizeGuide: sizeGuide[0] ? { rows: sizeGuideRows(sizeGuide[0].value) } : null,
     faqs,
   }
 }

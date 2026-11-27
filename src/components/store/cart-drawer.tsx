@@ -135,7 +135,7 @@ export function CartProvider({ children, freeShippingThreshold }: { children: Re
                             <Plus className="h-3.5 w-3.5" />
                           </button>
                         </div>
-                        <button type="button" onClick={() => change(line.itemId, 0)} className="text-xs text-stone-600 underline underline-offset-4 hover:text-ink" disabled={updating}>
+                        <button type="button" onClick={() => change(line.itemId, 0)} className="-my-2 -mr-2 px-2 py-2.5 text-xs text-stone-600 underline underline-offset-4 hover:text-ink" disabled={updating}>
                           Хасах
                         </button>
                       </div>
