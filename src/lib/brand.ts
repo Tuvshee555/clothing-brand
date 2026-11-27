@@ -17,6 +17,10 @@ export const BRAND = {
   /** The demo brand's own Pages (the shopping assistant answers there too). */
   facebook: 'https://www.facebook.com/manan.studio.mn',
   instagram: 'https://www.instagram.com/manan.studio.mn',
+  /** Messenger chat with the demo Page — its shop bot answers. */
+  messenger: 'https://m.me/manan.studio.mn',
+  /** Ursgal Digital's business line: the real people behind this example shop. */
+  agencyPhone: '66913149',
   /** Where the "back to portfolio" link points. */
   portfolioUrl: process.env.NEXT_PUBLIC_PORTFOLIO_URL ?? 'https://www.ursgaldigital.com/portfolio/fashion',
   agencyName: 'Ursgal Digital',

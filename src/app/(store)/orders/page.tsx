@@ -22,7 +22,7 @@ async function OrdersBody() {
   if (orders.length === 0) {
     return (
       <EmptyState title="Захиалга алга" action={<Link href="/shop" className={buttonClass('primary')}>Дэлгүүр үзэх</Link>}>
-        Энэ хөтчөөр хийсэн захиалга энд харагдана. Бүртгэл шаардлагагүй.
+        Энэ хөтчөөр хийсэн захиалга энд харагдана. Бүртгэл шаардлагагүй. Өөр төхөөрөмжөөр захиалсан бол «Захиалга хянах» хэсгээс хайна уу.
       </EmptyState>
     )
   }
@@ -53,7 +53,13 @@ export default function MyOrdersPage() {
   return (
     <div className="container-page pt-10 sm:pt-14">
       <h1 className="display mb-2 text-[40px] sm:text-[52px]">Миний захиалга</h1>
-      <p className="mb-8 text-[14px] text-stone-600">Энэ хөтчөөр хийсэн захиалгууд (демо).</p>
+      <p className="mb-8 text-[14px] text-stone-600">
+        Энэ хөтчөөр хийсэн захиалгууд. Өөр утас, компьютерээр захиалсан бол{' '}
+        <Link href="/track" className="font-medium text-ink underline underline-offset-2">
+          Захиалга хянах
+        </Link>{' '}
+        хэсэгт дугаар, утсаараа хайна.
+      </p>
       <Suspense fallback={<div className="h-48 animate-pulse bg-paper-2" />}>
         <OrdersBody />
       </Suspense>

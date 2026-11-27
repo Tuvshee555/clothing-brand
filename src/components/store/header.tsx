@@ -9,16 +9,17 @@ import { getStoreContent } from '@/server/queries/settings'
 import { getCartCount } from '@/server/services/cart'
 import { readVisitorKey } from '@/server/visitor'
 import { CartButton } from './cart-drawer'
-import { MobileMenu, SearchButton } from './header-client'
+import { AssistantHeaderButton, MobileMenu, SearchButton } from './header-client'
 import { WishlistCount } from './wishlist'
 
 export async function AnnouncementBar() {
   const { info } = await getStoreContent()
   return (
     <div className="bg-ink text-white">
-      <div className="container-page flex h-9 items-center justify-center gap-6 text-[11.5px] tracking-[0.04em] sm:justify-between">
+      <div className="container-page flex min-h-9 items-center justify-center gap-6 py-1.5 text-[11.5px] leading-snug tracking-[0.04em] sm:h-9 sm:justify-between sm:py-0">
         <span className="hidden text-white/60 sm:inline">Портфолио демо — зохиомол брэнд</span>
-        <p className="truncate text-center">
+        {/* Two lines on a phone rather than an offer cut off mid-word. */}
+        <p className="line-clamp-2 text-center sm:truncate">
           {info.announcementEnabled ? (
             <>
               <span className="sm:hidden">Демо дэлгүүр · </span>
@@ -119,6 +120,9 @@ export async function Header() {
 
         <div className="flex items-center justify-end">
           <SearchButton />
+          <Suspense fallback={null}>
+            <AssistantHeaderButton />
+          </Suspense>
           <Link href="/orders" className="hidden h-10 w-10 place-items-center hover:bg-paper-2 sm:grid" aria-label="Миний захиалга">
             <UserRound className="h-[19px] w-[19px]" strokeWidth={1.5} />
           </Link>

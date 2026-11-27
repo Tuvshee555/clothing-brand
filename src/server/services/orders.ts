@@ -9,7 +9,8 @@ import { ERR, ServiceError, type Actor, type ServiceContext } from '@/server/con
 import type { Database } from '@/server/db/client'
 import * as t from '@/server/db/schema'
 import { getQPay } from '@/server/payments'
-import { sha256Hex, safeEqual } from '@/server/security/crypto'
+import { normalizePhone } from '@/lib/phone'
+import { hmac, sha256Hex, safeEqual } from '@/server/security/crypto'
 import { applyStockChange } from './inventory'
 
 type Order = typeof t.orders.$inferSelect
@@ -116,14 +117,57 @@ export async function recordCashPayment(ctx: ServiceContext & { actor: Actor }, 
 // Customer side: order page access and QPay
 // ---------------------------------------------------------------------------
 
-/** The order if this browser placed it or the visitor holds its secret link. */
-export async function findCustomerOrder(db: Database, number: string, access: { token?: string | null; visitorKey?: string | null }) {
-  if (!/^MN-\d{5,9}$/.test(number)) return null
+const ORDER_NUMBER = /^MN-\d{5,9}$/
+/** How long a link from «Захиалга хянах» (order number + phone) keeps opening the order. */
+const LOOKUP_GRANT_DAYS = 7
+
+/**
+ * A link token for an order found by number + phone on another device. Only the order's
+ * secret link is stored (as a hash), so this signs the order number and an expiry with
+ * the server secret, bound to that hash: it cannot be forged and needs no new storage.
+ * Format `g.<expiry, base36 seconds>.<signature>`; accepted wherever `?t=` is.
+ */
+export function orderLookupGrant(order: { number: string; accessTokenHash: string }, now: Date): string {
+  const exp = Math.floor(now.getTime() / 1000 + LOOKUP_GRANT_DAYS * 86_400).toString(36)
+  return `g.${exp}.${hmac(`order-lookup:${order.number}:${exp}:${order.accessTokenHash}`)}`
+}
+
+function grantOk(token: string, order: { number: string; accessTokenHash: string }, now: Date): boolean {
+  const [, exp, signature] = token.split('.')
+  if (!exp || !signature || !/^[0-9a-z]{1,10}$/.test(exp) || parseInt(exp, 36) * 1000 < now.getTime()) return false
+  return safeEqual(hmac(`order-lookup:${order.number}:${exp}:${order.accessTokenHash}`), signature)
+}
+
+/** «MN-10001», «mn 10001» or «10001» → «MN-10001»; null when it cannot be an order number. */
+export function normalizeOrderNumber(input: string): string | null {
+  const digits = input.trim().toUpperCase().replace(/^MN[\s-]*/, '').replace(/\s+/g, '')
+  const number = `MN-${digits}`
+  return ORDER_NUMBER.test(number) ? number : null
+}
+
+/** The order if this browser placed it, or the visitor holds its secret link or a lookup link. */
+export async function findCustomerOrder(db: Database, number: string, access: { token?: string | null; visitorKey?: string | null }, now = new Date()) {
+  if (!ORDER_NUMBER.test(number)) return null
   const [order] = await db.select().from(t.orders).where(eq(t.orders.number, number)).limit(1)
   if (!order) return null
-  const tokenOk = !!access.token && access.token.length < 100 && safeEqual(sha256Hex(access.token), order.accessTokenHash)
+  const token = access.token && access.token.length < 100 ? access.token : null
+  const tokenOk = !!token && (token.startsWith('g.') ? grantOk(token, order, now) : safeEqual(sha256Hex(token), order.accessTokenHash))
   const visitorOk = !!access.visitorKey && order.visitorId === access.visitorKey
   return tokenOk || visitorOk ? order : null
+}
+
+/**
+ * «Захиалга хянах»: the order number and the phone it was placed with open the order on any
+ * device. Returns the order number and a lookup link token, or null — the same null whether
+ * the number does not exist or the phone does not match, so neither can be probed.
+ */
+export async function lookupOrder(db: Database, numberInput: string, phoneInput: string, now: Date): Promise<{ number: string; token: string } | null> {
+  const number = normalizeOrderNumber(numberInput)
+  const phone = normalizePhone(phoneInput)
+  if (!number || !phone) return null
+  const [order] = await db.select().from(t.orders).where(eq(t.orders.number, number)).limit(1)
+  if (!order || !safeEqual(order.customerPhone, phone)) return null
+  return { number, token: orderLookupGrant(order, now) }
 }
 
 /** Creates (or returns) the QPay invoice for an unpaid QPay order. Never inside a DB transaction. */

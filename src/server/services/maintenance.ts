@@ -7,6 +7,7 @@
 //  4. prune expired carts, old rate-limit windows, old test chats and problem logs
 // Sample orders (source "seed"), sample chats and the owner's own changes are never touched.
 import { and, eq, inArray, isNotNull, lt, sql } from 'drizzle-orm'
+import { STOREFRONT_OPEN_HOURS } from '@/lib/orders'
 import { ServiceError, type ServiceContext } from '@/server/context'
 import * as t from '@/server/db/schema'
 import { purgeReceipts } from '@/server/meta/receipts'
@@ -52,7 +53,7 @@ function seededBaseline(): Map<string, number> {
 export async function runDemoMaintenance(ctx: ServiceContext): Promise<MaintenanceReport> {
   if (ctx.actor) throw new ServiceError('forbidden', 'Maintenance runs as the system only.')
   const report: MaintenanceReport = { chatHoldsReleased: 0, cancelled: 0, unitsReturned: 0, restockedVariants: 0, anonymisedOrders: 0, deletedCarts: 0, deletedChats: 0, deletedMetaReceipts: 0 }
-  const stale = new Date(ctx.now.getTime() - 48 * 3_600_000)
+  const stale = new Date(ctx.now.getTime() - STOREFRONT_OPEN_HOURS * 3_600_000)
 
   // 0. Chat orders past their payment window.
   const holds = await releaseExpiredChatOrders(ctx.db, { now: ctx.now, limit: 200 })
@@ -72,11 +73,11 @@ export async function runDemoMaintenance(ctx: ServiceContext): Promise<Maintenan
       const items = await tx.select().from(t.orderItems).where(eq(t.orderItems.orderId, id))
       for (const item of items) {
         if (!item.variantId) continue
-        await applyStockChange(tx, { variantId: item.variantId, delta: item.quantity, reason: 'order_cancelled', orderId: id, actorLabel: 'Систем', note: 'Демо захиалга 48 цагийн дараа автоматаар цуцлагдсан' })
+        await applyStockChange(tx, { variantId: item.variantId, delta: item.quantity, reason: 'order_cancelled', orderId: id, actorLabel: 'Систем', note: `Демо захиалга ${STOREFRONT_OPEN_HOURS} цагийн дараа автоматаар цуцлагдсан` })
         report.unitsReturned += item.quantity
       }
-      await tx.update(t.orders).set({ status: 'cancelled', cancelledAt: ctx.now, cancelReason: 'Демо захиалга 48 цагийн дараа автоматаар цуцлагдсан.' }).where(eq(t.orders.id, id))
-      await tx.insert(t.orderEvents).values({ orderId: id, fromStatus: order.status, toStatus: 'cancelled', note: 'Демо захиалга 48 цагийн дараа автоматаар цуцлагдсан. Бараа агуулахад буцсан.', actorLabel: 'Систем' })
+      await tx.update(t.orders).set({ status: 'cancelled', cancelledAt: ctx.now, cancelReason: `Демо захиалга ${STOREFRONT_OPEN_HOURS} цагийн дараа автоматаар цуцлагдсан.` }).where(eq(t.orders.id, id))
+      await tx.insert(t.orderEvents).values({ orderId: id, fromStatus: order.status, toStatus: 'cancelled', note: `Демо захиалга ${STOREFRONT_OPEN_HOURS} цагийн дараа автоматаар цуцлагдсан. Бараа агуулахад буцсан.`, actorLabel: 'Систем' })
       report.cancelled++
     })
   }

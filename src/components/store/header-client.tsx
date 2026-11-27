@@ -1,14 +1,31 @@
 'use client'
 
-import { ArrowUpRight, Menu, Search, X } from 'lucide-react'
+import { ArrowUpRight, Menu, MessageCircle, Search, X } from 'lucide-react'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { ASSISTANT_OPEN_EVENT, hidesAssistant } from '@/lib/assistant-ui'
 import { BRAND } from '@/lib/brand'
 
 type NavItem = { slug: string; name: string }
 
 const POPULAR = ['Hoodie', 'Ноолуур', 'Жинс', 'Пальто', 'Цагаан цамц']
+
+/** Phones only: opens the shopping assistant from the header, so no floating button covers the page. */
+export function AssistantHeaderButton() {
+  const pathname = usePathname()
+  if (hidesAssistant(pathname)) return null
+  return (
+    <button
+      type="button"
+      onClick={() => window.dispatchEvent(new Event(ASSISTANT_OPEN_EVENT))}
+      className="grid h-10 w-10 place-items-center hover:bg-paper-2 sm:hidden"
+      aria-label="Худалдааны туслах нээх"
+    >
+      <MessageCircle className="h-[19px] w-[19px]" strokeWidth={1.5} />
+    </button>
+  )
+}
 
 export function SearchButton() {
   const [open, setOpen] = useState(false)
@@ -137,8 +154,10 @@ export function MobileMenu({ categories, collections }: { categories: NavItem[];
               </div>
               <ul className="space-y-2.5 border-t border-stone-200 pt-6 text-sm">
                 <li><Link href="/orders" onClick={close}>Миний захиалга</Link></li>
+                <li><Link href="/track" onClick={close}>Захиалга хянах</Link></li>
                 <li><Link href="/wishlist" onClick={close}>Хадгалсан бараа</Link></li>
                 <li><Link href="/help/delivery" onClick={close}>Хүргэлт, буцаалт</Link></li>
+                <li><Link href="/contact" onClick={close}>Холбоо барих</Link></li>
                 <li><Link href="/about" onClick={close}>Брэндийн тухай</Link></li>
                 <li><Link href="/admin/login" onClick={close}>Удирдлагын самбар (демо)</Link></li>
               </ul>

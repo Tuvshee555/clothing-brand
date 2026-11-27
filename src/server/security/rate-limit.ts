@@ -16,6 +16,8 @@ export const LIMITS = {
   cart: { name: 'cart', limit: 90, windowSeconds: 60 },
   checkout: { name: 'checkout', limit: 8, windowSeconds: 60 * 60 },
   payment: { name: 'payment', limit: 20, windowSeconds: 10 * 60 },
+  /** «Захиалга хянах»: order number + phone; tight so neither can be guessed by trying. */
+  orderLookup: { name: 'order-lookup', limit: 10, windowSeconds: 15 * 60 },
   newsletter: { name: 'newsletter', limit: 5, windowSeconds: 60 * 60 },
   assistantBurst: { name: 'assistant-burst', limit: 12, windowSeconds: 5 * 60 },
   assistantDaily: { name: 'assistant-daily', limit: 60, windowSeconds: 24 * 60 * 60 },

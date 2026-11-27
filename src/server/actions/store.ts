@@ -12,7 +12,7 @@ import { hashIp } from '@/server/security/crypto'
 import { enforceRateLimit, LIMITS } from '@/server/security/rate-limit'
 import { addToCart, getCartView, updateCartItem, type CartView } from '@/server/services/cart'
 import { placeOrder } from '@/server/services/checkout'
-import { ensureQpayInvoice, findCustomerOrder, simulateQpayPayment, verifyQpayPayment } from '@/server/services/orders'
+import { ensureQpayInvoice, findCustomerOrder, lookupOrder, simulateQpayPayment, verifyQpayPayment } from '@/server/services/orders'
 import { ensureVisitorKey, readVisitorKey } from '@/server/visitor'
 import { toFailure, type ActionResult } from './run'
 
@@ -60,6 +60,24 @@ export async function placeOrderAction(input: unknown): Promise<ActionResult<{ n
       if (order) await ensureQpayInvoice(db, order, appUrl()).catch((err) => console.error('[qpay] invoice', err))
     }
     return { ok: true, data: { number: placed.number, token: placed.accessToken } }
+  } catch (err) {
+    return toFailure(err)
+  }
+}
+
+const trackOrderInput = z.object({
+  number: z.string({ error: 'Захиалгын дугаараа оруулна уу.' }).trim().min(1, { error: 'Захиалгын дугаараа оруулна уу.' }).max(20, { error: 'Захиалгын дугаар буруу байна.' }),
+  phone: z.string({ error: 'Утасны дугаараа оруулна уу.' }).trim().min(1, { error: 'Утасны дугаараа оруулна уу.' }).max(20, { error: 'Утасны дугаар буруу байна.' }),
+})
+
+/** «Захиалга хянах»: opens an order from any device with its number and the phone it was placed with. */
+export async function trackOrderAction(input: unknown): Promise<ActionResult<{ number: string; token: string }>> {
+  try {
+    const { number, phone } = trackOrderInput.parse(input)
+    await limitBy(LIMITS.orderLookup, 'anon')
+    const found = await lookupOrder(db, number, phone, new Date())
+    if (!found) return { ok: false, error: 'Захиалгын дугаар эсвэл утасны дугаар таарахгүй байна. Шалгаад дахин оролдоно уу.' }
+    return { ok: true, data: found }
   } catch (err) {
     return toFailure(err)
   }

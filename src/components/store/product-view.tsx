@@ -185,7 +185,6 @@ export function ProductView({
             </button>
           ))}
         </div>
-        <p className="mt-3 text-[11px] text-stone-500">Демо: зураг нь лицензтэй стокийн гэрэл зураг бөгөөд үйлдвэрлэсэн бодит барааг харуулахгүй.</p>
       </div>
 
       {/* Buy panel */}

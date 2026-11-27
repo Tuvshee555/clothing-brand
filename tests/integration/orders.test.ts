@@ -4,7 +4,7 @@ import { ServiceError } from '@/server/context'
 import * as t from '@/server/db/schema'
 import { addToCart } from '@/server/services/cart'
 import { placeOrder } from '@/server/services/checkout'
-import { ensureQpayInvoice, findCustomerOrder, recordCashPayment, simulateQpayPayment, transitionOrder } from '@/server/services/orders'
+import { ensureQpayInvoice, findCustomerOrder, lookupOrder, recordCashPayment, simulateQpayPayment, transitionOrder } from '@/server/services/orders'
 import { checkoutDetails, createTestDb, ctx, demoActor, ownerActor, stockOf, variant, visitor, type TestDb } from './helpers'
 
 let db: TestDb
@@ -99,5 +99,23 @@ describe('order lifecycle', () => {
     expect(await findCustomerOrder(db, placed.number, { token: 'wrong-token' })).toBeNull()
     expect(await findCustomerOrder(db, placed.number, { visitorKey: visitor() })).toBeNull()
     expect(await findCustomerOrder(db, 'MN-09001', {})).toBeNull()
+  })
+
+  it('opens an order on another device with its number and the phone it was placed with', async () => {
+    const { placed } = await newOrder(visitor())
+    const now = new Date()
+    // A wrong phone, an unknown number and nonsense all answer the same: nothing.
+    expect(await lookupOrder(db, placed.number, '9911 2234', now)).toBeNull()
+    expect(await lookupOrder(db, 'MN-99999999', '9911 2233', now)).toBeNull()
+    expect(await lookupOrder(db, 'abc', '9911 2233', now)).toBeNull()
+    // Typed the way people type: «mn 10001», «+976 9911 2233».
+    const found = await lookupOrder(db, placed.number.replace('MN-', 'mn '), '+976 9911 2233', now)
+    expect(found?.number).toBe(placed.number)
+    expect(await findCustomerOrder(db, placed.number, { token: found!.token }, now)).not.toBeNull()
+    // The lookup link opens only its own order, cannot be altered and lasts a week.
+    const other = await newOrder(visitor())
+    expect(await findCustomerOrder(db, other.placed.number, { token: found!.token }, now)).toBeNull()
+    expect(await findCustomerOrder(db, placed.number, { token: `${found!.token.slice(0, -2)}xx` }, now)).toBeNull()
+    expect(await findCustomerOrder(db, placed.number, { token: found!.token }, new Date(now.getTime() + 8 * 86_400_000))).toBeNull()
   })
 })

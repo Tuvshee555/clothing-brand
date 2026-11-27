@@ -8,6 +8,7 @@ import { Fragment, useCallback, useEffect, useRef, useState, type ReactNode } fr
 import { useCartDrawer } from '@/components/store/cart-drawer'
 import { Spinner } from '@/components/ui/feedback'
 import type { ChatAction, ChatView, PublicChatMessage } from '@/lib/assistant/types'
+import { ASSISTANT_OPEN_EVENT, hidesAssistant } from '@/lib/assistant-ui'
 import { cn } from '@/lib/cn'
 import { formatMoney } from '@/lib/money'
 import { addToCartAction } from '@/server/actions/store'
@@ -234,6 +235,13 @@ export function AssistantWidget({ storeName }: { storeName: string }) {
   const pageSlug = /^\/products\/([a-z0-9-]+)/.exec(pathname)?.[1] ?? null
   const pollSince = useRef(0)
 
+  // The phone header's chat button (the floating one is hidden on phones so it never covers content).
+  useEffect(() => {
+    const onOpen = () => setOpen(true)
+    window.addEventListener(ASSISTANT_OPEN_EVENT, onOpen)
+    return () => window.removeEventListener(ASSISTANT_OPEN_EVENT, onOpen)
+  }, [])
+
   const apply = useCallback((next: ChatView) => {
     setView(next)
     setMessages(next.messages)
@@ -343,13 +351,16 @@ export function AssistantWidget({ storeName }: { storeName: string }) {
   }
   const closeOnMobile = () => window.innerWidth < 640 && setOpen(false)
 
+  // Checkout, order and order-lookup pages: no floating chat on top of the task.
+  if (hidesAssistant(pathname)) return null
+
   return (
     <>
       {!open && (
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className="fixed bottom-5 right-5 z-50 flex items-center gap-2 bg-ink px-4 py-3 text-[12px] font-medium uppercase tracking-[0.12em] text-white shadow-lg transition hover:bg-charcoal sm:bottom-6 sm:right-6"
+          className="fixed bottom-5 right-5 z-50 hidden items-center gap-2 bg-ink px-4 py-3 text-[12px] font-medium uppercase tracking-[0.12em] text-white shadow-lg transition hover:bg-charcoal sm:bottom-6 sm:right-6 sm:flex"
           aria-label="Худалдааны туслах нээх"
         >
           <MessageCircle className="h-4 w-4" strokeWidth={1.6} /> Туслах

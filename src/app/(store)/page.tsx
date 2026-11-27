@@ -15,6 +15,14 @@ export const metadata: Metadata = {
   title: { absolute: `${BRAND.name} — ${BRAND.tagline}` },
   description: 'Ноолуур, нягт хөвөн, цэвэр зүсэлттэй өдөр тутмын тансаг хувцас. Хэмжээ, өнгө тус бүрийн үлдэгдэл бодит цагт. (Портфолио демо)',
   alternates: { canonical: '/' },
+  // Shared links (Messenger, Facebook) show this card; product pages use their own photo.
+  openGraph: {
+    type: 'website',
+    locale: 'mn_MN',
+    siteName: BRAND.name,
+    images: [{ url: '/og/home.jpg', width: 1200, height: 630, alt: `${BRAND.name} — ${BRAND.tagline}` }],
+  },
+  twitter: { card: 'summary_large_image', images: ['/og/home.jpg'] },
 }
 
 function SectionHeading({ eyebrow, title, href, linkLabel }: { eyebrow?: string; title: string; href?: string; linkLabel?: string }) {
@@ -146,7 +154,6 @@ export default async function HomePage() {
         <section className="container-page pt-24">
           <SectionHeading eyebrow="Их захиалагддаг" title="Хамгийн их сонгогддог" href="/shop" />
           <ProductRow products={bestsellers} />
-          <p className="mt-6 text-[12px] text-stone-600">Демо: эрэмбэ нь сангийн жишээ захиалгад тулгуурласан.</p>
         </section>
       )}
 
@@ -237,10 +244,6 @@ export default async function HomePage() {
             <Link href="/about" className="link-underline mt-8 inline-flex items-center gap-1.5 text-[12px] uppercase tracking-[0.12em]">
               Брэндийн тухай <ArrowRight className="h-3.5 w-3.5" />
             </Link>
-            <p className="mt-10 border-t border-stone-200 pt-5 text-[12px] leading-relaxed text-stone-600">
-              Анхааруулга: {BRAND.name} бол {BRAND.agencyName}-ын бүтээсэн зохиомол брэнд. Бүтээгдэхүүн, үнэ, үлдэгдэл жишээ өгөгдөл бөгөөд зурагнууд
-              лицензтэй стокийн гэрэл зураг.
-            </p>
           </div>
         </div>
       </section>

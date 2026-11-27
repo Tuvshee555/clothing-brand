@@ -47,6 +47,33 @@ export function restoresStock(from: OrderStatus, to: OrderStatus): boolean {
 
 export const OPEN_STATUSES: readonly OrderStatus[] = ['pending', 'confirmed', 'processing', 'shipped']
 
+/**
+ * Hours a visitor's website order stays open. The demo's daily housekeeping
+ * (services/maintenance) cancels visitor orders still open after this, so it is
+ * also the payment deadline shown on an unpaid QPay order.
+ */
+export const STOREFRONT_OPEN_HOURS = 48
+
+/** The plain "what happens now" line on the customer's order page. */
+export function orderNextStep(order: { status: OrderStatus; paymentMethod: PaymentMethod; paymentStatus: PaymentStatus }): string {
+  switch (order.status) {
+    case 'cancelled':
+      return 'Захиалга цуцлагдсан тул хүргэлт хийгдэхгүй.'
+    case 'pending':
+      return order.paymentMethod === 'qpay' && order.paymentStatus === 'unpaid'
+        ? 'Төлбөрөө хийнэ үү. Төлбөр орсны дараа захиалга автоматаар баталгаажна.'
+        : 'Дэлгүүр захиалгыг шалгаад удахгүй баталгаажуулна.'
+    case 'confirmed':
+      return 'Захиалга баталгаажсан. Бараагаа бэлтгэж эхэлнэ.'
+    case 'processing':
+      return 'Бараа савлагдаж байна. Хүргэлтэд гармагц энд харагдана.'
+    case 'shipped':
+      return 'Захиалга хүргэлтэд гарсан. Утсаа ойрхон байлгаарай.'
+    case 'delivered':
+      return 'Хүргэгдсэн. Баярлалаа!'
+  }
+}
+
 export type PaymentStatus = 'unpaid' | 'simulated' | 'paid' | 'refunded'
 export type PaymentMethod = 'qpay' | 'cash_on_delivery'
 
